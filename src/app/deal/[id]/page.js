@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -66,7 +66,6 @@ export default function DealRoomPage() {
   const { id } = useParams();
   const { user, profile, isAdmin } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const chatEndRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -230,7 +229,7 @@ export default function DealRoomPage() {
 
   async function handleSendMessage(e) {
     e.preventDefault();
-    if (!text.trim() || tx?.chatArchived) return;
+    if (!user || !text.trim() || tx?.chatArchived) return;
     setSending(true);
     try {
       const name = myRole() === "buyer"
@@ -403,11 +402,12 @@ export default function DealRoomPage() {
       ) {
         setShowFeaturedReviewModal(true);
       }
-      if (searchParams.get("reviewFeatured") === "1" && isSeller && ad?.featured) {
+      const reviewFeatured = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("reviewFeatured") === "1";
+      if (reviewFeatured && isSeller && ad?.featured) {
         setShowFeaturedReviewModal(true);
       }
     }
-  }, [tx?.status, id, ad?.featured, isSeller, searchParams]);
+  }, [tx?.status, id, ad?.featured, isSeller]);
 
   if (loading) {
     return (
@@ -525,7 +525,7 @@ export default function DealRoomPage() {
                 <p className="text-center text-sm text-slate-400">Start the conversation…</p>
               )}
               {messages.map((m) => {
-                const isMe = m.senderId === user.uid;
+                const isMe = m.senderId === user?.uid;
                 const isSystem = m.system === true || m.senderId === "system";
                 const roleLabel = ROLE_LABELS[m.senderRole] || m.senderRole;
                 const displayName = m.senderName || roleLabel;
