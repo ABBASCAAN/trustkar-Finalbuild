@@ -9,7 +9,6 @@ const links = [
   { label: "Identity (KYC)", href: "/auth/kyc" },
   { label: "Why TrustKar?", href: "/compare" },
   { label: "Help & escrow policy", href: "/support" },
-  { label: "Disputes", href: "/disputes" },
 ];
 
 export default function Footer() {

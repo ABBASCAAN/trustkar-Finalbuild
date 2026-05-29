@@ -26,12 +26,16 @@ import {
   subscribeTransaction,
   createNotification,
   createFeaturedAdReview,
+  raiseDealDispute,
+  fetchDisputeById,
+  adminResolveDispute,
 } from "@/lib/firestore-helpers";
 import {
   ESCROW_STATUS,
   ESCROW_STATUS_LABELS,
   PAYMENT_METHODS,
   DISPATCH_DEADLINE_HOURS,
+  DISPUTE_OUTCOMES,
 } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
@@ -54,6 +58,7 @@ import {
   Smartphone,
   Mail,
   Camera,
+  Gavel,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { playNotificationSound } from "@/lib/sound";
@@ -118,6 +123,24 @@ export default function DealRoomPage() {
   const [returnCourierName, setReturnCourierName] = useState("");
   const [returnShipmentFile, setReturnShipmentFile] = useState(null);
   const [returnSubmitting, setReturnSubmitting] = useState(false);
+
+  /* Dispute state (integrated in deal room) */
+  const [disputeData, setDisputeData] = useState(null);
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [disputeEvidenceFiles, setDisputeEvidenceFiles] = useState([]);
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
+  /* Chat image upload */
+  const [chatImageFile, setChatImageFile] = useState(null);
+  const [chatImagePreview, setChatImagePreview] = useState(null);
+
+  /* Admin resolution */
+  const [resolveOutcome, setResolveOutcome] = useState(DISPUTE_OUTCOMES.FULL_REFUND);
+  const [resolvePartial, setResolvePartial] = useState("");
+  const [resolveNote, setResolveNote] = useState("");
+  const [resolving, setResolving] = useState(false);
 
   const isBuyer = tx?.buyerId === user?.uid;
   const isSeller = tx?.sellerId === user?.uid;
@@ -226,6 +249,10 @@ export default function DealRoomPage() {
       const sp = await fetchUserProfile(txData.sellerId);
       setSellerProfile(sp);
     }
+    if (txData.status === ESCROW_STATUS.DISPUTED && txData.disputeId) {
+      const d = await fetchDisputeById(txData.disputeId);
+      setDisputeData(d);
+    }
     setLoading(false);
   }
 
@@ -283,6 +310,92 @@ export default function DealRoomPage() {
       showToast("Could not send message", "error");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleSendChatImage(file) {
+    const imageFile = file || chatImageFile;
+    if (!imageFile || !user) return;
+    setSending(true);
+    try {
+      const up = await uploadImageToCloudinary(imageFile, { folder: "trustkar/chat" });
+      const name = myRole() === "buyer"
+        ? (buyerProfile?.displayName || tx.buyerName || "Buyer")
+        : myRole() === "seller"
+        ? (sellerProfile?.displayName || tx.sellerName || "Seller")
+        : "Admin";
+      await sendDealMessage(id, {
+        senderId: user.uid,
+        senderRole: myRole(),
+        senderName: name,
+        text: "",
+        imageUrl: up.secureUrl,
+      });
+      setChatImageFile(null);
+      setChatImagePreview(null);
+      shouldScrollRef.current = true;
+    } catch {
+      showToast("Could not send image", "error");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleSubmitDispute() {
+    if (!disputeReason.trim()) {
+      showToast("Select a reason for the dispute", "error");
+      return;
+    }
+    if (!disputeDescription.trim()) {
+      showToast("Enter a description", "error");
+      return;
+    }
+    if (disputeEvidenceFiles.length === 0) {
+      showToast("Upload at least one photo or video as evidence", "error");
+      return;
+    }
+    setDisputeSubmitting(true);
+    try {
+      const evidenceUrls = [];
+      for (const file of disputeEvidenceFiles) {
+        const up = await uploadImageToCloudinary(file, { folder: "trustkar/disputes" });
+        evidenceUrls.push(up.secureUrl);
+      }
+      await raiseDealDispute(id, user.uid, {
+        reason: disputeReason.trim(),
+        description: disputeDescription.trim(),
+        evidenceUrls,
+      });
+      showToast("Dispute opened — admin will review", "success");
+      setShowDisputeForm(false);
+      setDisputeReason("");
+      setDisputeDescription("");
+      setDisputeEvidenceFiles([]);
+      await load();
+    } catch (err) {
+      showToast(err.message || "Failed to open dispute", "error");
+    } finally {
+      setDisputeSubmitting(false);
+    }
+  }
+
+  async function handleResolveDispute() {
+    if (!isAdmin || !disputeData) return;
+    setResolving(true);
+    try {
+      await adminResolveDispute(disputeData.id, user.uid, {
+        outcome: resolveOutcome,
+        partialAmount: resolveOutcome === DISPUTE_OUTCOMES.PARTIAL_REFUND ? Number(resolvePartial) : null,
+        note: resolveNote,
+      });
+      showToast("Dispute resolved", "success");
+      const d = await fetchDisputeById(disputeData.id);
+      setDisputeData(d);
+      await load();
+    } catch (err) {
+      showToast(err.message || "Failed to resolve", "error");
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -641,6 +754,107 @@ export default function DealRoomPage() {
               </div>
             </div>
 
+            {/* Dispute banner & evidence — integrated in deal room */}
+            {tx.status === ESCROW_STATUS.DISPUTED && disputeData && (
+              <div className="space-y-3 border-b border-red-100 bg-red-50/40 p-3 sm:p-4">
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+                  <AlertTriangle size={18} className="text-red-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-red-800">Dispute active — funds frozen</p>
+                    <p className="text-xs text-red-700">Reason: {disputeData.reason}</p>
+                  </div>
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700">
+                    {disputeData.status}
+                  </span>
+                </div>
+
+                {disputeData.description && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-bold uppercase text-slate-400">Description</p>
+                    <p className="mt-1 text-sm text-slate-700">{disputeData.description}</p>
+                  </div>
+                )}
+
+                {disputeData.evidenceUrls?.length > 0 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-bold uppercase text-slate-400">Evidence</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {disputeData.evidenceUrls.map((url, i) => (
+                        <button key={i} type="button" onClick={() => setZoomImageUrl(url)} className="relative aspect-square overflow-hidden rounded-lg bg-slate-100">
+                          <Image src={url} alt="" fill className="object-cover" unoptimized />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Both parties can upload more evidence via chat images */}
+                <p className="text-xs text-center text-slate-500">
+                  Use the image button in chat below to upload additional evidence.
+                </p>
+
+                {/* Admin resolution panel */}
+                {isAdmin && disputeData.status === "open" && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="flex items-center gap-2 text-slate-800">
+                      <Gavel size={16} />
+                      <p className="text-sm font-bold">Resolve dispute</p>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      <select
+                        value={resolveOutcome}
+                        onChange={(e) => setResolveOutcome(e.target.value)}
+                        className="tk-input w-full !py-2 text-sm"
+                      >
+                        <option value={DISPUTE_OUTCOMES.FULL_REFUND}>Full refund to buyer</option>
+                        <option value={DISPUTE_OUTCOMES.PARTIAL_REFUND}>Partial refund</option>
+                        <option value={DISPUTE_OUTCOMES.RELEASE_SELLER}>Release to seller</option>
+                      </select>
+                      {resolveOutcome === DISPUTE_OUTCOMES.PARTIAL_REFUND && (
+                        <input
+                          type="number"
+                          placeholder="Refund amount PKR"
+                          value={resolvePartial}
+                          onChange={(e) => setResolvePartial(e.target.value)}
+                          className="tk-input w-full !py-2 text-sm"
+                        />
+                      )}
+                      <input
+                        placeholder="Resolution note (optional)"
+                        value={resolveNote}
+                        onChange={(e) => setResolveNote(e.target.value)}
+                        className="tk-input w-full !py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        disabled={resolving}
+                        onClick={handleResolveDispute}
+                        className="tk-btn-primary w-full !bg-sky-700 text-sm"
+                      >
+                        {resolving ? <Loader2 className="animate-spin" size={16} /> : "Resolve dispute"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {disputeData.status === "resolved" && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-center gap-2 text-emerald-800">
+                      <CheckCircle size={16} />
+                      <p className="text-sm font-bold">Resolved</p>
+                    </div>
+                    <p className="mt-1 text-xs text-emerald-700">
+                      Outcome: {disputeData.outcome || "N/A"}
+                      {disputeData.partialAmount ? ` · PKR ${disputeData.partialAmount.toLocaleString()}` : ""}
+                    </p>
+                    {disputeData.resolutionNote && (
+                      <p className="mt-1 text-xs text-emerald-600">{disputeData.resolutionNote}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Chat area */}
             <div ref={chatScrollRef} className="flex-1 space-y-2 overflow-y-auto p-2 sm:space-y-3 sm:p-4" style={{ maxHeight: "min(70vh, 520px)" }}>
               {messages.length === 0 && (
@@ -798,12 +1012,76 @@ export default function DealRoomPage() {
                 )}
 
                 {canDispute && (
-                  <Link
-                    href={`/disputes/new?tx=${id}`}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-bold text-red-700 sm:col-span-2"
-                  >
-                    <AlertTriangle size={16} /> Report issue / Dispute
-                  </Link>
+                  <div className="sm:col-span-2">
+                    {!showDisputeForm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowDisputeForm(true)}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-bold text-red-700"
+                      >
+                        <AlertTriangle size={16} /> Report issue / Open dispute
+                      </button>
+                    ) : (
+                      <div className="rounded-xl border border-red-100 bg-white p-4 shadow-sm space-y-3">
+                        <p className="text-sm font-bold text-red-700 flex items-center gap-2">
+                          <AlertTriangle size={14} /> Open dispute — evidence required
+                        </p>
+                        <select
+                          value={disputeReason}
+                          onChange={(e) => setDisputeReason(e.target.value)}
+                          className="tk-input w-full text-sm"
+                        >
+                          <option value="">Select reason…</option>
+                          <option value="Wrong item received">Wrong item received</option>
+                          <option value="Counterfeit / fake">Counterfeit / fake</option>
+                          <option value="Damaged item">Damaged item</option>
+                          <option value="Missing parts">Missing parts</option>
+                          <option value="Not as described">Not as described</option>
+                          <option value="Seller not cooperating">Seller not cooperating</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <textarea
+                          value={disputeDescription}
+                          onChange={(e) => setDisputeDescription(e.target.value)}
+                          placeholder="Describe the issue in detail…"
+                          className="tk-input h-20 w-full resize-none text-sm"
+                        />
+                        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-red-300 px-3 py-2 text-xs font-semibold text-red-700">
+                          <Upload size={14} /> Upload evidence photos/videos (mandatory)
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => setDisputeEvidenceFiles(Array.from(e.target.files || []))}
+                          />
+                        </label>
+                        {disputeEvidenceFiles.length > 0 && (
+                          <p className="text-xs text-slate-500">{disputeEvidenceFiles.length} file(s) selected</p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSubmitDispute}
+                            disabled={disputeSubmitting}
+                            className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {disputeSubmitting ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Submit dispute with evidence"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowDisputeForm(false);
+                              setDisputeEvidenceFiles([]);
+                            }}
+                            className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Buyer reject item */}
@@ -908,10 +1186,26 @@ export default function DealRoomPage() {
             {/* Message input */}
             {canChat && (
               <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 border-t border-slate-100 p-2 sm:gap-2 sm:p-3">
+                <label className="flex shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 p-2 text-slate-600 transition hover:bg-sky-50 hover:text-sky-600">
+                  <Upload size={16} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setChatImageFile(file);
+                        setChatImagePreview(URL.createObjectURL(file));
+                        handleSendChatImage(file);
+                      }
+                    }}
+                  />
+                </label>
                 <input
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="Type a message…"
+                  placeholder={tx.status === ESCROW_STATUS.DISPUTED ? "Type a message or upload evidence…" : "Type a message…"}
                   className="tk-input flex-1 !py-1.5 sm:!py-2"
                 />
                 <button type="submit" disabled={sending} className="tk-btn-primary !px-3 sm:!px-4">
