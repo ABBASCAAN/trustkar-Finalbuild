@@ -2,33 +2,21 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { BRAND_NAME } from "@/lib/constants";
 import UserMenu from "@/components/UserMenu";
-import { Plus, X, BadgeCheck, Search, MessageCircle } from "lucide-react";
+import { Plus, BadgeCheck, MessageCircle } from "lucide-react";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 
 export default function Navbar() {
   const { user, isAdmin, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-  const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", h, { passive: true });
     return () => window.removeEventListener("scroll", h);
   }, []);
-
-  function submitSearch() {
-    if (!search.trim()) return;
-    router.push(`/browse?search=${encodeURIComponent(search.trim())}`);
-    setSearchOpen(false);
-    setSearch("");
-  }
 
   return (
     <header
@@ -61,22 +49,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Desktop search — hidden on homepage because HeroSearch is already there */}
-        {pathname !== "/" && (
-          <div className="mx-4 hidden max-w-md flex-1 items-center gap-2 md:flex">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitSearch()}
-              placeholder="Search listings…"
-              className="tk-input !py-2 text-sm"
-            />
-            <button type="button" onClick={submitSearch} className="tk-btn-primary !px-3 !py-2">
-              <Search size={16} />
-            </button>
-          </div>
-        )}
-
         {/* Right actions: Admin Panel → Sell → My Profile (left to right) */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Admin Panel */}
@@ -108,43 +80,8 @@ export default function Navbar() {
               Login
             </Link>
           ) : null}
-
-          {/* Mobile search toggle — hidden on homepage */}
-          {pathname !== "/" && (
-            <button
-              type="button"
-              className="rounded-lg p-2 transition hover:bg-slate-50 md:hidden"
-              onClick={() => setSearchOpen(!searchOpen)}
-              aria-label="Search"
-            >
-              {searchOpen ? <X size={20} /> : <Search size={20} />}
-            </button>
-          )}
         </div>
       </div>
-
-      {/* Mobile search bar — hidden on homepage */}
-      {pathname !== "/" && (
-        <div
-          className={`overflow-hidden transition-all duration-300 md:hidden ${
-            searchOpen ? "max-h-20 border-t border-slate-100" : "max-h-0"
-          }`}
-        >
-          <div className="tk-container flex items-center gap-2 py-2">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitSearch()}
-              placeholder="Search listings…"
-              className="tk-input !py-2 text-sm"
-              autoFocus={searchOpen}
-            />
-            <button type="button" onClick={submitSearch} className="tk-btn-primary !px-3 !py-2">
-              <Search size={16} />
-            </button>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
