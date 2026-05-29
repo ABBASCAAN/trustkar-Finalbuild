@@ -103,6 +103,9 @@ export default function DealRoomPage() {
   const [zoomImageUrl, setZoomImageUrl] = useState(null);
   const [zoomedIn, setZoomedIn] = useState(false);
 
+  const isBuyer = tx?.buyerId === user?.uid;
+  const isSeller = tx?.sellerId === user?.uid;
+
   useEffect(() => {
     if (!user) {
       router.replace(`/auth/login?redirect=/deal/${id}`);
@@ -227,7 +230,7 @@ export default function DealRoomPage() {
 
   async function handleSendMessage(e) {
     e.preventDefault();
-    if (!text.trim() || tx.chatArchived) return;
+    if (!text.trim() || tx?.chatArchived) return;
     setSending(true);
     try {
       const name = myRole() === "buyer"
@@ -245,10 +248,10 @@ export default function DealRoomPage() {
       shouldScrollRef.current = true;
       if (myRole() === "seller") {
         await createNotification({
-          userId: tx.buyerId,
+          userId: tx?.buyerId,
           type: "seller_reply",
           title: "New message in deal",
-          body: `Seller replied on ${tx.adTitle}`,
+          body: `Seller replied on ${tx?.adTitle}`,
           link: `/deal/${id}`,
         });
       }
@@ -423,8 +426,6 @@ export default function DealRoomPage() {
     );
   }
 
-  const isBuyer = tx.buyerId === user.uid;
-  const isSeller = tx.sellerId === user.uid;
   const canPay = isBuyer && tx.status === ESCROW_STATUS.PAYMENT_PENDING;
   const canShip =
     isSeller && tx.status === ESCROW_STATUS.FUNDS_HELD && tx.status !== ESCROW_STATUS.DISPUTED;

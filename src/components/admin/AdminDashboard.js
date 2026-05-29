@@ -299,7 +299,9 @@ export default function AdminDashboard() {
   }, [txUnlocked, txSearch, transactions, users]);
 
   async function openEscrowDeal() {
-    const tx = await fetchTransactionByEscrowId(escrowLookup.trim());
+    const lookup = escrowLookup.trim();
+    if (!lookup) return showToast("Enter an escrow ID", "error");
+    const tx = await fetchTransactionByEscrowId(lookup);
     if (!tx) return showToast("Escrow ID not found", "error");
     router.push(`/deal/${tx.id}`);
   }
