@@ -1280,13 +1280,13 @@ export async function generatePhoneOtp(userId, phoneNumber) {
     phoneVerified: false,
     otpRequestedAt: serverTimestamp(),
   });
-  await createNotification({
-    userId: "admin",
-    type: NOTIFICATION_TYPES.PHONE_OTP_PENDING,
-    title: "Phone OTP pending",
-    body: `User ${phoneNumber} requested OTP: ${otp}`,
-    link: "/admin",
-    meta: { userId, phone: phoneNumber, otp },
+  // Store in dedicated collection for admin dashboard (no composite index issues)
+  await addDoc(collection(db, "phone_otp_requests"), {
+    userId,
+    phone: phoneNumber,
+    otp,
+    status: "pending",
+    createdAt: serverTimestamp(),
   });
   return otp;
 }
@@ -1309,19 +1309,21 @@ export async function verifyPhoneOtp(userId, otp) {
 
 export async function fetchPendingOtpVerifications() {
   const q = query(
-    collection(db, COLLECTIONS.NOTIFICATIONS),
-    where("type", "==", NOTIFICATION_TYPES.PHONE_OTP_PENDING),
-    where("read", "==", false),
-    orderBy("createdAt", "desc")
+    collection(db, "phone_otp_requests"),
+    orderBy("createdAt", "desc"),
+    limit(50)
   );
   const snap = await getDocs(q);
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const byUser = {};
-  for (const item of items) {
-    const uid = item.meta?.userId;
-    if (uid && !byUser[uid]) byUser[uid] = item;
-  }
-  return Object.values(byUser);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((item) => item.status === "pending");
+}
+
+export async function markOtpSent(requestId) {
+  await updateDoc(doc(db, "phone_otp_requests", requestId), {
+    status: "sent",
+    sentAt: serverTimestamp(),
+  });
 }
 
 /** Profile / Settings */

@@ -37,7 +37,7 @@ import {
   getHomepageSettings,
   saveHomepageSettings,
   fetchPendingOtpVerifications,
-  markAllNotificationsRead,
+  markOtpSent,
 } from "@/lib/firestore-helpers";
 import { ESCROW_STATUS, BANNER_SLOTS, DISPUTE_OUTCOMES } from "@/lib/constants";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
@@ -229,6 +229,18 @@ export default function AdminDashboard() {
     }
     loadAll();
   }, [user, isAdmin, authLoading]);
+
+  // Poll OTP requests every 10s when on OTP tab for near real-time updates
+  useEffect(() => {
+    if (!isAdmin || tab !== "otp") return;
+    const id = setInterval(async () => {
+      try {
+        const potp = await fetchPendingOtpVerifications();
+        setPendingOtps(potp);
+      } catch { /* ignore */ }
+    }, 10000);
+    return () => clearInterval(id);
+  }, [isAdmin, tab]);
 
   // Play alert sound when new OTP verifications arrive
   useEffect(() => {
@@ -627,13 +639,15 @@ export default function AdminDashboard() {
               <p className="text-slate-500">No pending OTP verifications.</p>
             ) : (
               pendingOtps.map((otpItem) => {
-                const phone = otpItem.meta?.phone || "";
-                const otpCode = otpItem.meta?.otp || "";
-                const userId = otpItem.meta?.userId || "";
+                const phone = otpItem.phone || "";
+                const otpCode = otpItem.otp || "";
+                const userId = otpItem.userId || "";
                 const ts = otpItem.createdAt;
                 const timeStr = ts?.toDate
                   ? ts.toDate().toLocaleString("en-PK")
-                  : new Date(ts).toLocaleString("en-PK");
+                  : ts?.seconds
+                  ? new Date(ts.seconds * 1000).toLocaleString("en-PK")
+                  : "Just now";
                 const waLink = phone ? `https://wa.me/${phone.replace(/\D/g, "")}?text=Your+TrustKar+verification+OTP+is:+${otpCode}` : "";
                 return (
                   <div key={otpItem.id} className="tk-card space-y-3 !p-4">
@@ -645,20 +659,16 @@ export default function AdminDashboard() {
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Pending</span>
                     </div>
 
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-[10px] font-bold uppercase text-slate-400">OTP Code</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <p className="text-2xl font-black tracking-widest text-sky-700">{otpCode}</p>
-                        <button
-                          type="button"
-                          onClick={() => { navigator.clipboard.writeText(otpCode); showToast("OTP copied", "success"); }}
-                          className="flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-600 shadow-sm border border-slate-200 hover:text-sky-600"
-                        >
-                          <Copy size={12} /> Copy
-                        </button>
-                      </div>
-                      <p className="mt-1 text-[10px] text-slate-500">Valid for 10 minutes from request time.</p>
-                    </div>
+                    {/* OTP Display — big copyable button */}
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(otpCode); showToast("OTP copied! Paste in WhatsApp", "success"); }}
+                      className="group w-full rounded-xl border-2 border-dashed border-sky-300 bg-sky-50 p-4 text-center transition hover:border-sky-500 hover:bg-sky-100 active:scale-[0.98]"
+                    >
+                      <p className="text-[10px] font-bold uppercase text-sky-600">Tap to copy OTP</p>
+                      <p className="mt-1 text-3xl font-black tracking-[0.3em] text-sky-800">{otpCode}</p>
+                      <p className="mt-1 text-[10px] text-sky-600">Valid 10 min · Click to copy</p>
+                    </button>
 
                     <div className="flex flex-wrap gap-2">
                       {waLink && (
@@ -668,21 +678,21 @@ export default function AdminDashboard() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
                         >
-                          <Smartphone size={14} /> Open WhatsApp
+                          <Smartphone size={14} /> Send on WhatsApp
                         </a>
                       )}
                       {userId && (
                         <Link
-                          href={`/chat/${userId}`}
+                          href={`/seller/${userId}`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700"
                         >
-                          <MessageCircle size={14} /> Open chat
+                          <MessageCircle size={14} /> View user
                         </Link>
                       )}
                       <button
                         type="button"
                         onClick={async () => {
-                          await markAllNotificationsRead(userId);
+                          await markOtpSent(otpItem.id);
                           showToast("Marked as sent", "success");
                           await loadAll();
                         }}
