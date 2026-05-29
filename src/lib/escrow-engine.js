@@ -147,6 +147,22 @@ export function computeDeadlineAction(tx, now = new Date()) {
     };
   }
 
+  const returnReviewDue =
+    tx.returnReviewDueAt?.toDate?.() ?? (tx.returnReviewDueAt ? new Date(tx.returnReviewDueAt) : null);
+
+  if (tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && returnReviewDue && nowMs > returnReviewDue.getTime() && !tx.sellerReviewedAt) {
+    return {
+      action: "auto_accept_return_review",
+      nextStatus: ESCROW_STATUS.SELLER_REVIEW,
+      patch: {
+        sellerAcceptedReturn: true,
+        sellerReviewNote: "Auto-accepted: seller did not review within deadline.",
+        sellerReviewedAt: now,
+        autoProcessed: true,
+      },
+    };
+  }
+
   return null;
 }
 

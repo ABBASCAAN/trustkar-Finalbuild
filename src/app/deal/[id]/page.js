@@ -23,6 +23,9 @@ import {
   buyerSubmitReturnShipment,
   sellerReviewReturn,
   adminRefundBuyer,
+  adminApproveReturn,
+  adminVerifyReturnShipment,
+  sellerConfirmReturnReceipt,
   subscribeTransaction,
   createNotification,
   createFeaturedAdReview,
@@ -542,6 +545,39 @@ export default function DealRoomPage() {
     }
   }
 
+  async function handleAdminApproveReturn() {
+    if (!confirm("Approve buyer's return request?")) return;
+    try {
+      await adminApproveReturn(id, user.uid);
+      showToast("Return approved — buyer notified to ship back", "success");
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not approve return", "error");
+    }
+  }
+
+  async function handleAdminVerifyReturnShipment() {
+    if (!confirm("Verify buyer's return shipment?")) return;
+    try {
+      await adminVerifyReturnShipment(id, user.uid);
+      showToast("Return shipment verified — seller notified", "success");
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not verify return shipment", "error");
+    }
+  }
+
+  async function handleSellerConfirmReturnReceipt() {
+    if (!confirm("Confirm you received the returned parcel?")) return;
+    try {
+      await sellerConfirmReturnReceipt(id, user.uid);
+      showToast("Receipt confirmed — inspection period started", "success");
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not confirm receipt", "error");
+    }
+  }
+
   function renderPaymentDetails() {
     if (!paymentSettings) return null;
     const m = paymentSettings[paymentMethod];
@@ -637,11 +673,23 @@ export default function DealRoomPage() {
       case ESCROW_STATUS.RELEASED:
         return { current: "Completed", next: "Deal closed — no further action", color: "emerald" };
       case ESCROW_STATUS.REJECTED:
-        return { current: "Dispute Submitted – Awaiting TrustKar Verification", next: "Ship item back to seller within the deadline", color: "red" };
+        if (!tx.returnApprovedAt) {
+          return { current: "Dispute Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to review your evidence", color: "red" };
+        }
+        return { current: "Ship Item Back To Seller", next: "Submit courier name, tracking ID and return shipment proof", color: "amber" };
       case ESCROW_STATUS.RETURN_IN_TRANSIT:
-        return { current: "Return Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for seller to review the returned item", color: "sky" };
+        if (!tx.returnShipmentVerifiedByAdminAt) {
+          return { current: "Return Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify return shipment", color: "sky" };
+        }
+        if (!tx.sellerReceivedReturnAt) {
+          return { current: "Return Shipment Verified", next: "Wait for seller to confirm receipt of returned item", color: "emerald" };
+        }
+        if (!tx.sellerReviewedAt) {
+          return { current: "Waiting For Seller Inspection", next: "Seller is inspecting the returned item", color: "amber" };
+        }
+        return { current: "Waiting For TrustKar Refund", next: "Refund will be processed shortly", color: "emerald" };
       case ESCROW_STATUS.SELLER_REVIEW:
-        return { current: "Return Shipment Verified", next: "Wait for TrustKar to process your refund", color: "emerald" };
+        return { current: "Refund Processing", next: "Wait for TrustKar to process your refund", color: "emerald" };
       case ESCROW_STATUS.REFUNDED:
         return { current: "Refund Completed", next: "Deal closed — no further action", color: "emerald" };
       case ESCROW_STATUS.DISPUTED:
@@ -672,11 +720,23 @@ export default function DealRoomPage() {
       case ESCROW_STATUS.RELEASED:
         return { current: "Completed – Funds Received", next: "Deal closed — no further action", color: "emerald" };
       case ESCROW_STATUS.REJECTED:
-        return { current: "Buyer Has Opened A Dispute", next: "Wait for buyer to ship item back", color: "red" };
+        if (!tx.returnApprovedAt) {
+          return { current: "Buyer Has Opened A Dispute", next: "Wait for TrustKar to review buyer's evidence", color: "red" };
+        }
+        return { current: "Awaiting Buyer Return Shipment", next: "Buyer will ship item back to you", color: "amber" };
       case ESCROW_STATUS.RETURN_IN_TRANSIT:
-        return { current: "Buyer Return Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify return shipment", color: "sky" };
+        if (!tx.returnShipmentVerifiedByAdminAt) {
+          return { current: "Buyer Return Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify return shipment", color: "sky" };
+        }
+        if (!tx.sellerReceivedReturnAt) {
+          return { current: "Item Returning To Seller", next: "Click 'Returned Item Received' once you get the parcel", color: "amber" };
+        }
+        if (!tx.sellerReviewedAt) {
+          return { current: "Return Inspection Period Active (24 Hours)", next: "Inspect returned item and choose Satisfied or Not Satisfied", color: "amber" };
+        }
+        return { current: "Return Accepted", next: "Wait for TrustKar to process refund to buyer", color: "emerald" };
       case ESCROW_STATUS.SELLER_REVIEW:
-        return { current: "Item Returning To Seller", next: "Inspect returned item and choose Accept or Reject", color: "amber" };
+        return { current: "Return Accepted", next: "Wait for TrustKar to process refund to buyer", color: "emerald" };
       case ESCROW_STATUS.REFUNDED:
         return { current: "Return Completed", next: "Deal closed — no further action", color: "emerald" };
       case ESCROW_STATUS.DISPUTED:
@@ -733,10 +793,12 @@ export default function DealRoomPage() {
   const canConfirmReceipt = isBuyer && tx.status === ESCROW_STATUS.DISPATCHED;
   const canAccept = isBuyer && tx.status === ESCROW_STATUS.INSPECTION;
   const canReject = isBuyer && tx.status === ESCROW_STATUS.INSPECTION;
-  const canSubmitReturn = isBuyer && tx.status === ESCROW_STATUS.REJECTED;
-  const canReviewReturn = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT;
+  const canSubmitReturn = isBuyer && tx.status === ESCROW_STATUS.REJECTED && tx.returnApprovedAt;
+  const canSellerConfirmReturnReceipt = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && tx.returnShipmentVerifiedByAdminAt && !tx.sellerReceivedReturnAt;
+  const canSellerReviewReturn = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && tx.sellerReceivedReturnAt && !tx.sellerReviewedAt;
   const canAdminRefund = isAdmin && tx.status === ESCROW_STATUS.SELLER_REVIEW;
-  const canDispute = (isBuyer || isSeller) && tx.status === ESCROW_STATUS.INSPECTION;
+  const canAdminApproveReturn = isAdmin && tx.status === ESCROW_STATUS.REJECTED && !tx.returnApprovedAt;
+  const canAdminVerifyReturnShipment = isAdmin && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && !tx.returnShipmentVerifiedByAdminAt;
   const canAdminVerifyShipment = isAdmin && tx.status === ESCROW_STATUS.PENDING_SHIPMENT_VERIFY;
   const isDealClosed = [ESCROW_STATUS.RELEASED, ESCROW_STATUS.CANCELLED, ESCROW_STATUS.REFUNDED].includes(tx.status);
   const canChat = !isDealClosed && !tx.chatArchived;
@@ -1111,98 +1173,25 @@ export default function DealRoomPage() {
                 )}
 
                 {canAccept && (
-                  <button type="button" onClick={handleAcceptItem} className="tk-btn-primary w-full !bg-sky-600 sm:col-span-2">
-                    <CheckCircle size={18} /> Satisfied by the product — Confirm
+                  <button type="button" onClick={handleAcceptItem} className="tk-btn-primary w-full !bg-emerald-600 sm:col-span-2">
+                    <CheckCircle size={18} /> Satisfied With Item Received
                   </button>
-                )}
-
-                {canDispute && (
-                  <div className="sm:col-span-2">
-                    {!showDisputeForm ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowDisputeForm(true)}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-bold text-red-700"
-                      >
-                        <AlertTriangle size={16} /> Report issue / Open dispute
-                      </button>
-                    ) : (
-                      <div className="rounded-xl border border-red-100 bg-white p-4 shadow-sm space-y-3">
-                        <p className="text-sm font-bold text-red-700 flex items-center gap-2">
-                          <AlertTriangle size={14} /> Open dispute — evidence required
-                        </p>
-                        <select
-                          value={disputeReason}
-                          onChange={(e) => setDisputeReason(e.target.value)}
-                          className="tk-input w-full text-sm"
-                        >
-                          <option value="">Select reason…</option>
-                          <option value="Wrong item received">Wrong item received</option>
-                          <option value="Counterfeit / fake">Counterfeit / fake</option>
-                          <option value="Damaged item">Damaged item</option>
-                          <option value="Missing parts">Missing parts</option>
-                          <option value="Not as described">Not as described</option>
-                          <option value="Seller not cooperating">Seller not cooperating</option>
-                          <option value="Other">Other</option>
-                        </select>
-                        <textarea
-                          value={disputeDescription}
-                          onChange={(e) => setDisputeDescription(e.target.value)}
-                          placeholder="Describe the issue in detail…"
-                          className="tk-input h-20 w-full resize-none text-sm"
-                        />
-                        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-red-300 px-3 py-2 text-xs font-semibold text-red-700">
-                          <Upload size={14} /> Upload evidence photos/videos (mandatory)
-                          <input
-                            type="file"
-                            accept="image/*,video/*"
-                            multiple
-                            className="hidden"
-                            onChange={(e) => setDisputeEvidenceFiles(Array.from(e.target.files || []))}
-                          />
-                        </label>
-                        {disputeEvidenceFiles.length > 0 && (
-                          <p className="text-xs text-slate-500">{disputeEvidenceFiles.length} file(s) selected</p>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={handleSubmitDispute}
-                            disabled={disputeSubmitting}
-                            className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
-                          >
-                            {disputeSubmitting ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Submit dispute with evidence"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowDisputeForm(false);
-                              setDisputeEvidenceFiles([]);
-                            }}
-                            className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 )}
 
                 {/* Buyer reject item */}
                 {canReject && (
                   <div className="rounded-xl border border-red-100 bg-white p-3 shadow-sm space-y-3 sm:p-4 sm:col-span-2">
                     <p className="text-sm font-bold flex items-center gap-2 text-red-700">
-                      <AlertTriangle size={14} /> Reject item — start return
+                      <AlertTriangle size={14} /> Not Satisfied With Item Received
                     </p>
                     <textarea
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="Reason: Wrong item, damaged, not as described, etc."
+                      placeholder="Return Reason: Wrong item, damaged, not as described, etc."
                       className="tk-input h-20 w-full resize-none text-sm"
                     />
                     <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
-                      <Upload size={14} /> Add photos / videos as evidence
+                      <Upload size={14} /> Evidence Photos (required)
                       <input
                         type="file"
                         accept="image/*,video/*"
@@ -1220,29 +1209,62 @@ export default function DealRoomPage() {
                       disabled={rejecting}
                       className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
                     >
-                      {rejecting ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Reject item & start return"}
+                      {rejecting ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Submit Dispute"}
                     </button>
                   </div>
+                )}
+
+                {/* Admin approve return */}
+                {canAdminApproveReturn && (
+                  <button
+                    type="button"
+                    onClick={handleAdminApproveReturn}
+                    className="tk-btn-primary w-full !bg-amber-600 sm:col-span-2"
+                  >
+                    <CheckCircle size={18} /> Approve return request
+                  </button>
                 )}
 
                 {/* Buyer submit return shipment */}
                 {canSubmitReturn && (
                   <div className="rounded-xl bg-white p-3 shadow-sm border border-slate-100 space-y-3 sm:p-4 sm:col-span-2">
-                    <p className="text-sm font-bold flex items-center gap-2"><Truck size={14} className="text-sky-600"/> Ship item back</p>
+                    <p className="text-sm font-bold flex items-center gap-2"><Truck size={14} className="text-sky-600"/> Ship item back to seller</p>
                     <input value={returnCourierName} onChange={(e) => setReturnCourierName(e.target.value)} placeholder="Courier (TCS, Leopards…)" className="tk-input !py-2 text-sm w-full" />
                     <input value={returnTrackingId} onChange={(e) => setReturnTrackingId(e.target.value)} placeholder="Return Tracking ID *" className="tk-input !py-2 text-sm w-full" />
                     <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
-                      <Upload size={14} /> Proof photo (optional)
+                      <Upload size={14} /> Return Shipment Proof Photo (optional)
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => setReturnShipmentFile(e.target.files?.[0])} />
                     </label>
                     <button type="button" onClick={handleSubmitReturnShipment} disabled={returnSubmitting} className="tk-btn-primary w-full">
-                      {returnSubmitting ? <Loader2 className="animate-spin" size={18} /> : "Submit return shipment"}
+                      {returnSubmitting ? <Loader2 className="animate-spin" size={18} /> : "Submit Return Shipment"}
                     </button>
                   </div>
                 )}
 
+                {/* Admin verify return shipment */}
+                {canAdminVerifyReturnShipment && (
+                  <button
+                    type="button"
+                    onClick={handleAdminVerifyReturnShipment}
+                    className="tk-btn-primary w-full !bg-amber-600 sm:col-span-2"
+                  >
+                    <CheckCircle size={18} /> Verify return shipment
+                  </button>
+                )}
+
+                {/* Seller confirm returned item received */}
+                {canSellerConfirmReturnReceipt && (
+                  <button
+                    type="button"
+                    onClick={handleSellerConfirmReturnReceipt}
+                    className="tk-btn-primary w-full !bg-sky-600 sm:col-span-2"
+                  >
+                    <Package size={18} /> Returned Item Received
+                  </button>
+                )}
+
                 {/* Seller review returned item */}
-                {canReviewReturn && (
+                {canSellerReviewReturn && (
                   <div className="rounded-xl border border-amber-100 bg-white p-3 shadow-sm space-y-3 sm:p-4 sm:col-span-2">
                     <p className="text-sm font-bold flex items-center gap-2 text-amber-700">
                       <Package size={14} /> Review returned item
@@ -1256,14 +1278,14 @@ export default function DealRoomPage() {
                         onClick={() => handleSellerReviewReturn(true)}
                         className="tk-btn-primary flex-1 !bg-emerald-600"
                       >
-                        <CheckCircle size={16} /> Accept return
+                        <CheckCircle size={16} /> Returned Item Received And Satisfied
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSellerReviewReturn(false)}
                         className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-50 py-2.5 text-sm font-bold text-red-700 border border-red-200 hover:bg-red-100"
                       >
-                        <AlertTriangle size={16} /> Reject return
+                        <AlertTriangle size={16} /> Returned Item Received But Not Satisfied
                       </button>
                     </div>
                   </div>

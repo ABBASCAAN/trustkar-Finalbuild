@@ -686,6 +686,13 @@ export async function adminReleaseToSeller(transactionId, adId, adminId) {
     body: `PKR ${(tx.sellerPayout ?? tx.amount).toLocaleString()} sent to you.`,
     link: `/deal/${transactionId}`,
   });
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.PAYMENT_RELEASED,
+    title: "Transaction completed",
+    body: `Your escrow deal is complete. Seller received the funds.`,
+    link: `/deal/${transactionId}`,
+  });
   await sendSystemMessage(transactionId, `Funds seller ko release kar diye gaye hain. Transaction successfully complete ho gayi hai. PKR ${(tx.sellerPayout ?? tx.amount).toLocaleString()} released to seller.`);
   if (adId) {
     await markAdSold(adId);
@@ -711,7 +718,7 @@ export async function processTransactionDeadlines(transactionId) {
   if (!action?.nextStatus) return tx;
 
   const patch = { ...(action.patch || {}) };
-  for (const key of ["cancelledAt", "autoCompletedAt", "buyerVerifiedAt", "inspectionStartedAt", "inspectionEndsAt"]) {
+  for (const key of ["cancelledAt", "autoCompletedAt", "buyerVerifiedAt", "inspectionStartedAt", "inspectionEndsAt", "sellerReviewedAt"]) {
     if (patch[key] instanceof Date) {
       patch[key] = Timestamp.fromDate(patch[key]);
     }
@@ -761,6 +768,24 @@ export async function processTransactionDeadlines(transactionId) {
       link: `/deal/${transactionId}`,
     });
     await sendSystemMessage(transactionId, "Inspection period complete ho gaya hai. Buyer ki taraf se koi dispute submit nahi hua. Funds seller ko release kiye ja rahe hain.");
+  }
+
+  if (action.action === "auto_accept_return_review") {
+    await createNotification({
+      userId: tx.buyerId,
+      type: NOTIFICATION_TYPES.DEAL_AUTO_COMPLETED,
+      title: "Return auto-accepted",
+      body: "Seller did not review the returned item in time. Refund will be processed shortly.",
+      link: `/deal/${transactionId}`,
+    });
+    await createNotification({
+      userId: tx.sellerId,
+      type: NOTIFICATION_TYPES.DEAL_AUTO_COMPLETED,
+      title: "Return auto-accepted",
+      body: "You did not review the returned item within the deadline. Refund is being processed.",
+      link: `/deal/${transactionId}`,
+    });
+    await sendSystemMessage(transactionId, "Seller ne returned item ki review deadline miss kar di. System automatically accept kar raha hai. Refund process ki ja rahi hai.");
   }
 
   await appendAuditLog({
@@ -957,7 +982,14 @@ export async function buyerRejectItem(transactionId, buyerId, { reason, evidence
     body: `Reason: ${reason || "Not specified"}. Return process started.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Buyer ne dispute submit kiya hai. TrustKar Team evidence review kar rahi hai. Reason: ${reason || "Not specified"}. Buyer must ship the item back within ${DISPATCH_DEADLINE_HOURS} hours.`);
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+    title: "Dispute submitted",
+    body: "Your rejection has been submitted. TrustKar Team will review your evidence shortly.",
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, `Buyer ne dispute submit kiya hai. TrustKar Team evidence review kar rahi hai. Reason: ${reason || "Not specified"}.`);
 
   // Send rejection evidence as chat messages so buyer, seller & TrustKar Team can all see them
   if (evidenceUrls?.length > 0) {
@@ -985,7 +1017,6 @@ export async function buyerSubmitReturnShipment(transactionId, buyerId, { tracki
     returnCourierName: (courierName || "").trim(),
     returnShipmentProofUrl: proofUrl || null,
     returnShippedAt: serverTimestamp(),
-    returnReviewDueAt: Timestamp.fromDate(addHours(new Date(), INSPECTION_PERIOD_HOURS)),
   });
 
   await appendAuditLog({
@@ -1001,10 +1032,17 @@ export async function buyerSubmitReturnShipment(transactionId, buyerId, { tracki
     userId: tx.sellerId,
     type: NOTIFICATION_TYPES.SHIPMENT_POSTED,
     title: "Return shipment submitted",
-    body: `Tracking: ${trackingId}. Review the returned item when it arrives.`,
+    body: `Tracking: ${trackingId}. Awaiting TrustKar verification.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Buyer ne return shipment submit kar di hai. Verification jari hai. Tracking: ${trackingId}. Seller has ${INSPECTION_PERIOD_HOURS} hours to review the returned item.`);
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.SHIPMENT_POSTED,
+    title: "Return shipment submitted",
+    body: "Your return shipment has been submitted. Awaiting TrustKar verification.",
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, `Buyer ne return shipment submit kar di hai. Verification jari hai. Tracking: ${trackingId}.`);
 
   // Send return shipment proof as chat message so all parties can see it
   await sendDealMessage(transactionId, {
@@ -1014,6 +1052,107 @@ export async function buyerSubmitReturnShipment(transactionId, buyerId, { tracki
     text: `Return shipment submitted${courierName ? " via " + courierName : ""}. Tracking: ${trackingId}.`,
     imageUrl: proofUrl || null,
   });
+}
+
+/** TrustKar Team approves buyer's return request (Phase 8B) */
+export async function adminApproveReturn(transactionId, adminId) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Transaction not found");
+  if (tx.status !== ESCROW_STATUS.REJECTED) throw new Error("Return is not pending approval.");
+  if (tx.returnApprovedAt) throw new Error("Return already approved.");
+
+  await updateTransactionStatus(transactionId, ESCROW_STATUS.REJECTED, {
+    returnApprovedAt: serverTimestamp(),
+    returnApprovedBy: adminId,
+  });
+  await appendAuditLog({
+    entityType: "transaction",
+    entityId: transactionId,
+    action: "return_approved",
+    actorId: adminId,
+    actorRole: "admin",
+  });
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+    title: "Return request approved",
+    body: "TrustKar approved your return. Ship the item back to seller within the deadline.",
+    link: `/deal/${transactionId}`,
+  });
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+    title: "Return approved",
+    body: "Buyer will ship the item back. Await the return shipment.",
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, "Return request approve kar di gayi hai. Buyer item seller ko wapas dispatch kare.");
+}
+
+/** TrustKar Team verifies buyer's return shipment (Phase 10B) */
+export async function adminVerifyReturnShipment(transactionId, adminId) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Transaction not found");
+  if (tx.status !== ESCROW_STATUS.RETURN_IN_TRANSIT) throw new Error("Return is not in transit.");
+  if (tx.returnShipmentVerifiedByAdminAt) throw new Error("Return shipment already verified.");
+
+  const reviewDue = addHours(new Date(), INSPECTION_PERIOD_HOURS);
+  await updateTransactionStatus(transactionId, ESCROW_STATUS.RETURN_IN_TRANSIT, {
+    returnShipmentVerifiedByAdminAt: serverTimestamp(),
+    returnReviewDueAt: Timestamp.fromDate(reviewDue),
+  });
+  await appendAuditLog({
+    entityType: "transaction",
+    entityId: transactionId,
+    action: "return_shipment_verified",
+    actorId: adminId,
+    actorRole: "admin",
+    meta: { trackingId: tx.returnTrackingId },
+  });
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.SHIPMENT_POSTED,
+    title: "Return shipment verified",
+    body: "Your return shipment has been verified. Seller will review the returned item.",
+    link: `/deal/${transactionId}`,
+  });
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.SHIPMENT_POSTED,
+    title: "Return shipment verified",
+    body: `Tracking: ${tx.returnTrackingId}. Parcel is returning to you. Click 'Returned Item Received' once you get it.`,
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, `Return shipment verify kar di gayi hai. Seller parcel receive hone ka intezar kare. Tracking: ${tx.returnTrackingId}.`);
+}
+
+/** Seller confirms they received the returned parcel (Phase 11B) */
+export async function sellerConfirmReturnReceipt(transactionId, sellerId) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Deal not found");
+  if (tx.sellerId !== sellerId) throw new Error("Only seller can confirm receipt.");
+  if (tx.status !== ESCROW_STATUS.RETURN_IN_TRANSIT) throw new Error("Item is not in return transit.");
+  if (!tx.returnShipmentVerifiedByAdminAt) throw new Error("Return shipment is not yet verified by TrustKar.");
+  if (tx.sellerReceivedReturnAt) throw new Error("Already confirmed receipt.");
+
+  await updateTransactionStatus(transactionId, ESCROW_STATUS.RETURN_IN_TRANSIT, {
+    sellerReceivedReturnAt: serverTimestamp(),
+  });
+  await appendAuditLog({
+    entityType: "transaction",
+    entityId: transactionId,
+    action: "seller_received_return",
+    actorId: sellerId,
+    actorRole: "seller",
+  });
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.ITEM_RECEIVED,
+    title: "Seller received return",
+    body: "Seller confirmed they received the returned parcel. Inspection period started.",
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, "Seller ne returned parcel receive kar liya hai. Seller ke paas item inspect karne ke liye 24 ghante hain.");
 }
 
 /** Seller reviews returned item */
