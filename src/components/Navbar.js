@@ -50,7 +50,7 @@ export default function Navbar() {
           <div className="hidden sm:flex items-center gap-1">
             {user && (
               <Link
-                href="/dashboard?tab=chats"
+                href="/chats"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
                 title="Chats"
               >

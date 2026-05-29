@@ -235,7 +235,7 @@ export default function ChatPage() {
     try {
       await deleteChat(id);
       showToast("Chat deleted", "success");
-      router.push("/dashboard?tab=chats");
+      router.push("/chats");
     } catch {
       showToast("Could not delete chat", "error");
     }
@@ -253,7 +253,7 @@ export default function ChatPage() {
     return (
       <div className="tk-container py-20 text-center">
         <h1 className="text-xl font-bold">Chat not found</h1>
-        <Link href="/dashboard?tab=chats" className="mt-4 text-cyan-600 hover:underline">
+        <Link href="/chats" className="mt-4 text-cyan-600 hover:underline">
           Back to chats
         </Link>
       </div>
