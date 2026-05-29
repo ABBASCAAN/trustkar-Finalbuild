@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userDoc().data.role == 'admin';
+    }
+
+    function isTransactionParty(transaction) {
+      return isSignedIn() &&
+        (request.auth.uid == transaction.data.buyerId ||
+         request.auth.uid == transaction.data.sellerId);
+    }
+
+    match /ads/{adId} {
+      allow read: if resource.data.status == 'active'
+        || (isSignedIn() && resource.data.sellerId == request.auth.uid)
+        || isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.status == 'pending_approval';
+      allow update, delete: if isSignedIn() && (
+        resource.data.sellerId == request.auth.uid || isAdmin()
+      );
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSignedIn() || isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /wishlist/{adId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /views/{viewId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /transactions/{txId} {
+      allow read: if isTransactionParty(resource) || isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isTransactionParty(resource) || isAdmin();
+
+      match /messages/{msgId} {
+        allow read: if isTransactionParty(
+          get(/databases/$(database)/documents/transactions/$(txId))
+        ) || isAdmin();
+        allow create: if isSignedIn() && (
+          isTransactionParty(
+            get(/databases/$(database)/documents/transactions/$(txId))
+          ) || isAdmin()
+        );
+      }
+    }
+
+    match /platform_settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /inquiries/{inquiryId} {
+      allow create: if isSignedIn();
+      allow read, update: if isSignedIn() && (
+        request.auth.uid == resource.data.buyerId ||
+        request.auth.uid == resource.data.sellerId ||
+        isAdmin()
+      );
+
+      match /messages/{msgId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid == get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.buyerId ||
+          request.auth.uid == get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.sellerId ||
+          isAdmin()
+        );
+        allow create: if isSignedIn();
+      }
+    }
+
+    match /sponsored_banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /disputes/{disputeId} {
+      allow create: if isSignedIn();
+      allow read, update: if isSignedIn() &&
+        (request.auth.uid == resource.data.buyerId ||
+         request.auth.uid == resource.data.sellerId ||
+         request.auth.uid == resource.data.raisedBy)
+        || isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.buyerId == request.auth.uid;
+      allow update, delete: if isAdmin()
+        || (isSignedIn() && resource.data.buyerId == request.auth.uid);
+    }
+
+    match /support_tickets/{ticketId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow update: if isAdmin();
+    }
+
+    match /admin_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    match /escrow_ledger/{entryId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

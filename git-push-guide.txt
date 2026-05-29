@@ -1,0 +1,28 @@
+Git Push Guide for TrustKar
+=============================
+
+Har baar jab changes karna ho aur GitHub pe update karna ho, yeh commands run karo:
+
+1. Add sab changes:
+   git add .
+
+2. Commit karo message ke sath:
+   git commit -m "Updated TrustKar: Added new features and fixed layout bugs"
+
+3. GitHub pe push karo:
+   git push origin main
+
+
+PowerShell mein ek hi line mein:
+----------------------------------
+git add .; git commit -m "Updated TrustKar: Added new features and fixed layout bugs"; git push origin main
+
+
+Agar error aye to pehle pull karo phir push karo:
+--------------------------------------------------
+git pull origin main --rebase
+git push origin main
+
+
+Current repo: https://github.com/ABBASCAAN/TrustkarFInalBuild.git
+Branch: main
