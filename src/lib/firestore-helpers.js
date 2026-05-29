@@ -369,6 +369,7 @@ export async function createTransaction({
     actorRole: "buyer",
     meta: { escrowId, amount, escrowFee },
   });
+  await sendSystemMessage(ref.id, "Deal create ho gayi hai. Buyer total amount TrustKar Escrow Wallet (Easypaisa, JazzCash ya Bank Account) mein transfer kare aur payment proof ya Transaction ID submit kare.");
   return { id: ref.id, escrowId, escrowFee, sellerPayout };
 }
 
@@ -411,6 +412,7 @@ export async function submitPaymentProof(transactionId, { text, imageUrl, method
     text: `Payment proof submitted via ${method || "unknown method"}${text ? ". TID: " + text : ""}. Awaiting TrustKar verification.`,
     imageUrl: imageUrl || null,
   });
+  await sendSystemMessage(transactionId, "Buyer ne payment proof submit kar diya hai. Verification ke baad seller ko shipment instructions di jayengi.");
 }
 
 export async function adminVerifyPayment(transactionId, adminId) {
@@ -452,7 +454,7 @@ export async function adminVerifyPayment(transactionId, adminId) {
     body: `Buyer paid for ${tx.adTitle}. Ship within ${DISPATCH_DEADLINE_HOURS} hours.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Payment verified by TrustKar. Funds held in escrow. Seller must ship within ${DISPATCH_DEADLINE_HOURS} hours.`);
+  await sendSystemMessage(transactionId, `Payment verify kar di gayi hai. Funds TrustKar Escrow mein secure hain. Seller item dispatch kare aur courier details submit kare. Ship within ${DISPATCH_DEADLINE_HOURS} hours.`);
 }
 
 export async function sellerSubmitShipment(transactionId, sellerId, { trackingId, courierName, proofUrl }) {
@@ -498,6 +500,7 @@ export async function sellerSubmitShipment(transactionId, sellerId, { trackingId
     text: `Shipment submitted${courierName ? " via " + courierName : ""}. Tracking: ${trackingId}. Awaiting admin verification.`,
     imageUrl: proofUrl || null,
   });
+  await sendSystemMessage(transactionId, "Seller ne shipment details submit kar di hain. TrustKar Team verification kar rahi hai.");
 }
 
 export async function adminVerifyShipment(transactionId, adminId) {
@@ -534,7 +537,7 @@ export async function adminVerifyShipment(transactionId, adminId) {
     body: "Your shipment has been verified. Awaiting buyer confirmation.",
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Shipment verified by TrustKar. Tracking: ${tx.trackingId}. Waiting for buyer to confirm receipt.`);
+  await sendSystemMessage(transactionId, `Shipment verify kar di gayi hai. Buyer tracking details dekh sakta hai aur parcel receive hone ka intezar kare. Tracking: ${tx.trackingId}.`);
 }
 
 export async function startInspectionWindow(transactionId) {
@@ -553,7 +556,7 @@ export async function startInspectionWindow(transactionId) {
     body: `Accept the item or report an issue within ${INSPECTION_PERIOD_HOURS} hours.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Inspection window is now open. Buyer has ${INSPECTION_PERIOD_HOURS} hours to inspect the item, confirm satisfaction, or report an issue.`);
+  await sendSystemMessage(transactionId, `Inspection Period shuru ho gaya hai. Buyer ke paas item inspect karne ke liye ${INSPECTION_PERIOD_HOURS} ghante hain.`);
 }
 
 export async function buyerConfirmReceipt(transactionId, buyerId) {
@@ -566,7 +569,7 @@ export async function buyerConfirmReceipt(transactionId, buyerId) {
   await updateTransactionStatus(transactionId, ESCROW_STATUS.DISPATCHED, {
     buyerReceivedAt: serverTimestamp(),
   });
-  await sendSystemMessage(transactionId, "Buyer confirmed: Item received. Inspection window will open.");
+  await sendSystemMessage(transactionId, "Buyer ne item receive kar liya hai. Inspection Period shuru ho raha hai.");
   await startInspectionWindow(transactionId);
 }
 
@@ -609,7 +612,7 @@ export async function buyerAcceptItem(transactionId, buyerId) {
     body: "Admin will release payment to you shortly.",
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, "Buyer accepted the item. Payment release pending admin approval.");
+  await sendSystemMessage(transactionId, "Buyer ne item approve kar diya hai. TrustKar Team seller ko payment release kar rahi hai.");
 }
 
 /** @deprecated use buyerAcceptItem */
@@ -662,7 +665,7 @@ export async function adminReleaseToSeller(transactionId, adId, adminId) {
     body: `PKR ${(tx.sellerPayout ?? tx.amount).toLocaleString()} sent to you.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Deal completed. Payment of PKR ${(tx.sellerPayout ?? tx.amount).toLocaleString()} released to seller. Chat archived.`);
+  await sendSystemMessage(transactionId, `Funds seller ko release kar diye gaye hain. Transaction successfully complete ho gayi hai. PKR ${(tx.sellerPayout ?? tx.amount).toLocaleString()} released to seller.`);
   if (adId) {
     await markAdSold(adId);
     const adSnap = await getDoc(doc(db, COLLECTIONS.ADS, adId));
@@ -718,7 +721,7 @@ export async function processTransactionDeadlines(transactionId) {
       body: "Shipment deadline missed.",
       link: `/deal/${transactionId}`,
     });
-    await sendSystemMessage(transactionId, "Deal auto-cancelled: seller did not ship within the allowed timeframe. Refund will be processed.");
+    await sendSystemMessage(transactionId, "Seller ne shipment deadline miss kar di. Buyer refund request raise kar sakta hai. TrustKar Team verify karke refund release kar sakti hai.");
   }
 
   if (action.action === "auto_complete_inspection") {
@@ -736,7 +739,7 @@ export async function processTransactionDeadlines(transactionId) {
       body: "Payment pending admin release.",
       link: `/deal/${transactionId}`,
     });
-    await sendSystemMessage(transactionId, "Inspection window ended automatically. Deal marked for payment release.");
+    await sendSystemMessage(transactionId, "Inspection period complete ho gaya hai. Buyer ki taraf se koi dispute submit nahi hua. Funds seller ko release kiye ja rahe hain.");
   }
 
   await appendAuditLog({
@@ -861,7 +864,7 @@ export async function adminResolveDispute(disputeId, adminId, { outcome, partial
     meta: { outcome },
   });
 
-  await sendSystemMessage(dispute.transactionId, `Dispute resolved by Escrow Team. Outcome: ${outcome}${note ? ". " + note : ""}.`);
+  await sendSystemMessage(dispute.transactionId, `Dispute resolved by TrustKar Team. Outcome: ${outcome}${note ? ". " + note : ""}.`);
 }
 
 export async function fetchOpenDisputes() {
@@ -906,7 +909,7 @@ export async function buyerRejectItem(transactionId, buyerId, { reason, evidence
     body: `Reason: ${reason || "Not specified"}. Return process started.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Buyer rejected the item. Reason: ${reason || "Not specified"}. Buyer must ship the item back within ${DISPATCH_DEADLINE_HOURS} hours.`);
+  await sendSystemMessage(transactionId, `Buyer ne dispute submit kiya hai. TrustKar Team evidence review kar rahi hai. Reason: ${reason || "Not specified"}. Buyer must ship the item back within ${DISPATCH_DEADLINE_HOURS} hours.`);
 }
 
 /** Buyer submits return shipment proof */
@@ -940,7 +943,7 @@ export async function buyerSubmitReturnShipment(transactionId, buyerId, { tracki
     body: `Tracking: ${trackingId}. Review the returned item when it arrives.`,
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `Buyer submitted return shipment. Tracking: ${trackingId}. Seller has ${INSPECTION_PERIOD_HOURS} hours to review the returned item.`);
+  await sendSystemMessage(transactionId, `Buyer ne return shipment submit kar di hai. Verification jari hai. Tracking: ${trackingId}. Seller has ${INSPECTION_PERIOD_HOURS} hours to review the returned item.`);
 }
 
 /** Seller reviews returned item */
@@ -970,7 +973,7 @@ export async function sellerReviewReturn(transactionId, sellerId, { accept, note
       body: "Your refund will be processed shortly.",
       link: `/deal/${transactionId}`,
     });
-    await sendSystemMessage(transactionId, "Seller accepted the returned item. Refund will be processed by TrustKar.");
+    await sendSystemMessage(transactionId, "Seller ne confirm kar diya hai ke returned item satisfactory condition mein receive ho gaya hai. Refund process ki ja rahi hai.");
   } else {
     // Auto-create dispute record when seller rejects return
     const disputeRef = await addDoc(collection(db, COLLECTIONS.DISPUTES), {
@@ -1061,7 +1064,7 @@ export async function adminRefundBuyer(transactionId, adminId, { partialAmount, 
     body: "Buyer has been refunded.",
     link: `/deal/${transactionId}`,
   });
-  await sendSystemMessage(transactionId, `TrustKar processed refund of PKR ${refundAmt.toLocaleString()} to buyer. Deal closed.`);
+  await sendSystemMessage(transactionId, `Refund buyer ko successfully transfer kar diya gaya hai. Escrow fee deduct kar di gayi hai. Transaction close kar di gayi hai. PKR ${refundAmt.toLocaleString()} refunded.`);
 }
 
 /** Subscribe to a single transaction in real-time */
@@ -1204,7 +1207,7 @@ export async function sendSystemMessage(transactionId, text) {
   return addDoc(collection(db, COLLECTIONS.TRANSACTIONS, transactionId, "messages"), {
     senderId: "system",
     senderRole: "admin",
-    senderName: "Escrow Team",
+    senderName: "TrustKar Team",
     text: (text || "").trim(),
     system: true,
     createdAt: serverTimestamp(),

@@ -70,7 +70,7 @@ const ROLE_COLORS = {
 const ROLE_LABELS = {
   buyer: "Buyer",
   seller: "Seller",
-  admin: "Escrow",
+  admin: "TrustKar Team",
 };
 
 export default function DealRoomPage() {
@@ -618,6 +618,78 @@ export default function DealRoomPage() {
     }
   }
 
+  function getBuyerStatus() {
+    switch (tx?.status) {
+      case ESCROW_STATUS.PAYMENT_PENDING:
+        return { current: "Awaiting Payment Submission", next: "Pay via Easypaisa / JazzCash / Bank and submit proof", color: "amber" };
+      case ESCROW_STATUS.PENDING_VERIFICATION:
+        return { current: "Payment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify your payment", color: "sky" };
+      case ESCROW_STATUS.FUNDS_HELD:
+        return { current: "Funds Secured In Escrow – Waiting For Seller Shipment", next: "Wait for seller to ship the item", color: "emerald" };
+      case ESCROW_STATUS.PENDING_SHIPMENT_VERIFY:
+        return { current: "Seller Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify shipment", color: "sky" };
+      case ESCROW_STATUS.DISPATCHED:
+        return { current: "Item Dispatched – Waiting For Delivery", next: "Click 'Item received' when parcel arrives", color: "sky" };
+      case ESCROW_STATUS.INSPECTION:
+        return { current: "Inspection Period Active (24 Hours)", next: "Inspect item and choose Satisfied or Not Satisfied", color: "amber" };
+      case ESCROW_STATUS.PENDING_RELEASE:
+        return { current: "Transaction Completed", next: "Wait for TrustKar to release payment to seller", color: "emerald" };
+      case ESCROW_STATUS.RELEASED:
+        return { current: "Completed", next: "Deal closed — no further action", color: "emerald" };
+      case ESCROW_STATUS.REJECTED:
+        return { current: "Dispute Submitted – Awaiting TrustKar Verification", next: "Ship item back to seller within the deadline", color: "red" };
+      case ESCROW_STATUS.RETURN_IN_TRANSIT:
+        return { current: "Return Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for seller to review the returned item", color: "sky" };
+      case ESCROW_STATUS.SELLER_REVIEW:
+        return { current: "Return Shipment Verified", next: "Wait for TrustKar to process your refund", color: "emerald" };
+      case ESCROW_STATUS.REFUNDED:
+        return { current: "Refund Completed", next: "Deal closed — no further action", color: "emerald" };
+      case ESCROW_STATUS.DISPUTED:
+        return { current: "Return Dispute Under Review", next: "Wait for TrustKar final decision", color: "red" };
+      case ESCROW_STATUS.CANCELLED:
+        return { current: "Deal Cancelled", next: "No further action required", color: "slate" };
+      default:
+        return { current: tx?.status || "Loading...", next: "", color: "slate" };
+    }
+  }
+
+  function getSellerStatus() {
+    switch (tx?.status) {
+      case ESCROW_STATUS.PAYMENT_PENDING:
+        return { current: "Waiting For Buyer Payment", next: "Wait for buyer to complete payment", color: "amber" };
+      case ESCROW_STATUS.PENDING_VERIFICATION:
+        return { current: "Buyer Payment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify payment", color: "sky" };
+      case ESCROW_STATUS.FUNDS_HELD:
+        return { current: "Payment Verified – Ship Item Within 72 Hours", next: "Submit courier name, tracking ID and shipment proof", color: "amber" };
+      case ESCROW_STATUS.PENDING_SHIPMENT_VERIFY:
+        return { current: "Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify shipment", color: "sky" };
+      case ESCROW_STATUS.DISPATCHED:
+        return { current: "Item Shipped Successfully", next: "Wait for buyer to confirm receipt", color: "emerald" };
+      case ESCROW_STATUS.INSPECTION:
+        return { current: "Buyer Inspecting Item", next: "Wait for buyer's decision within 24 hours", color: "amber" };
+      case ESCROW_STATUS.PENDING_RELEASE:
+        return { current: "Payment Releasing", next: "Wait for TrustKar to release funds to you", color: "emerald" };
+      case ESCROW_STATUS.RELEASED:
+        return { current: "Completed – Funds Received", next: "Deal closed — no further action", color: "emerald" };
+      case ESCROW_STATUS.REJECTED:
+        return { current: "Buyer Has Opened A Dispute", next: "Wait for buyer to ship item back", color: "red" };
+      case ESCROW_STATUS.RETURN_IN_TRANSIT:
+        return { current: "Buyer Return Shipment Submitted – Awaiting TrustKar Verification", next: "Wait for TrustKar to verify return shipment", color: "sky" };
+      case ESCROW_STATUS.SELLER_REVIEW:
+        return { current: "Item Returning To Seller", next: "Inspect returned item and choose Accept or Reject", color: "amber" };
+      case ESCROW_STATUS.REFUNDED:
+        return { current: "Return Completed", next: "Deal closed — no further action", color: "emerald" };
+      case ESCROW_STATUS.DISPUTED:
+        return { current: "Return Dispute Under Review", next: "Wait for TrustKar final decision", color: "red" };
+      case ESCROW_STATUS.CANCELLED:
+        return { current: "Deal Cancelled", next: "No further action required", color: "slate" };
+      default:
+        return { current: tx?.status || "Loading...", next: "", color: "slate" };
+    }
+  }
+
+  const myStatus = isBuyer ? getBuyerStatus() : isSeller ? getSellerStatus() : { current: statusMessage(), next: "", color: "slate" };
+
   useEffect(() => {
     if (tx?.status === ESCROW_STATUS.RELEASED) {
       const alreadyShown = typeof window !== "undefined" && localStorage.getItem(`deal_closed_modal_${id}`);
@@ -700,6 +772,46 @@ export default function DealRoomPage() {
         </div>
       </div>
 
+      {/* My Status Bar */}
+      {!isAdmin && (
+        <div className="tk-container pb-4">
+          <div className={`mx-auto max-w-4xl rounded-xl border p-3 shadow-sm sm:p-4 ${
+            myStatus.color === "amber" ? "border-amber-200 bg-amber-50" :
+            myStatus.color === "sky" ? "border-sky-200 bg-sky-50" :
+            myStatus.color === "emerald" ? "border-emerald-200 bg-emerald-50" :
+            myStatus.color === "red" ? "border-red-200 bg-red-50" :
+            "border-slate-200 bg-slate-50"
+          }`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className={`text-xs font-bold uppercase tracking-wider ${
+                  myStatus.color === "amber" ? "text-amber-700" :
+                  myStatus.color === "sky" ? "text-sky-700" :
+                  myStatus.color === "emerald" ? "text-emerald-700" :
+                  myStatus.color === "red" ? "text-red-700" :
+                  "text-slate-600"
+                }`}>
+                  {isBuyer ? "Your Status (Buyer)" : "Your Status (Seller)"}
+                </p>
+                <p className="mt-0.5 text-sm font-bold text-slate-900">{myStatus.current}</p>
+              </div>
+              {myStatus.next && (
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase text-slate-500">Next Required Action</p>
+                  <p className={`text-xs font-semibold ${
+                    myStatus.color === "amber" ? "text-amber-700" :
+                    myStatus.color === "sky" ? "text-sky-700" :
+                    myStatus.color === "emerald" ? "text-emerald-700" :
+                    myStatus.color === "red" ? "text-red-700" :
+                    "text-slate-600"
+                  }`}>{myStatus.next}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="tk-container py-6 lg:py-8">
         <div className="mx-auto max-w-4xl">
           <div className="tk-card flex min-h-[420px] flex-col !p-0">
@@ -727,7 +839,7 @@ export default function DealRoomPage() {
               </div>
               {/* Escrow center — perfectly centered over chat */}
               <div className="flex flex-col items-center justify-self-center">
-                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700 sm:text-[10px]">Escrow Team</span>
+                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700 sm:text-[10px]">TrustKar Team</span>
                 <span className="mt-0.5 text-[9px] text-slate-400 sm:text-[10px]">Secured</span>
               </div>
               {/* Seller right */}
@@ -873,7 +985,7 @@ export default function DealRoomPage() {
                   return (
                     <div key={m.id} className="flex justify-center">
                       <div className="max-w-[92%] rounded-2xl bg-sky-50 px-4 py-2 text-center text-xs font-medium text-sky-800 shadow-sm">
-                        <p className="text-center font-bold">Escrow Team</p>
+                        <p className="text-center font-bold">TrustKar Team</p>
                         <p className="mt-0.5 text-center">{m.text}</p>
                         {timeStr && <p className="mt-1 text-center text-[10px] opacity-60">{timeStr}</p>}
                       </div>
