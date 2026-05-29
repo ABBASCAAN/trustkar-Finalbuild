@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Home, LayoutGrid, PlusCircle, MessageCircle, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { subscribeUserChats } from "@/lib/firestore-helpers";
+import { useChatRead } from "@/hooks/useChatRead";
 import { cn } from "@/lib/utils";
 
 const LINK_ITEMS = [
@@ -17,29 +18,18 @@ const LINK_ITEMS = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { unreadCount } = useChatRead(user?.uid);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
-  const lastHeardRef = useRef(0);
+  const chatsRef = useRef([]);
 
   useEffect(() => {
     if (!user) return;
-    lastHeardRef.current = Date.now() / 1000;
     const unsub = subscribeUserChats(user.uid, (chats) => {
-      let count = 0;
-      const threshold = lastHeardRef.current;
-      for (const c of chats) {
-        const t =
-          c.lastMessageAt?.seconds ||
-          c.updatedAt?.seconds ||
-          c.createdAt?.seconds ||
-          0;
-        if (t > threshold && c.lastMessageSenderId && c.lastMessageSenderId !== user.uid) {
-          count++;
-        }
-      }
-      setUnreadChatCount(count);
+      chatsRef.current = chats;
+      setUnreadChatCount(unreadCount(chats));
     });
     return () => unsub();
-  }, [user]);
+  }, [user, unreadCount]);
 
   if (pathname.startsWith("/admin")) return null;
 

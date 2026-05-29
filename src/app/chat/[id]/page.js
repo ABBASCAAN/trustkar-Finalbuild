@@ -19,6 +19,7 @@ import {
 import { formatPrice, getMemberSinceYears } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/sound";
 import { calculateEscrowFees } from "@/lib/escrow-engine";
+import { useChatRead } from "@/hooks/useChatRead";
 import { useToast } from "@/context/ToastContext";
 import {
   Send,
@@ -37,6 +38,7 @@ export default function ChatPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
+  const { markRead } = useChatRead(user?.uid);
 
   const [chat, setChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -125,6 +127,8 @@ export default function ChatPage() {
       setOtherProfile(op);
       setAd(adData);
       setLoading(false);
+      // Mark this chat as read when user opens it
+      markRead(id);
     } catch {
       setLoading(false);
     }

@@ -35,14 +35,14 @@ export default function Navbar() {
               <span className="ml-1 hidden text-[10px] font-bold text-sky-700 sm:inline">.pk</span>
             </span>
           </Link>
-          <div className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1">
             {user && (
               <Link
                 href="/chats"
-                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-cyan-300 hover:text-sky-700 hover:shadow-md active:scale-95 sm:h-10 sm:w-10"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-cyan-300 hover:text-sky-700 hover:shadow-md active:scale-95 sm:h-11 sm:w-11"
                 title="Chats"
               >
-                <MessageCircle size={17} className="transition-transform duration-300" />
+                <MessageCircle size={18} className="transition-transform duration-300" />
               </Link>
             )}
             <NotificationsDropdown />

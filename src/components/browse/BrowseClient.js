@@ -278,19 +278,22 @@ function BrowseInner() {
       <div className="border-b border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 md:bg-gradient-to-r">
         <div className="tk-container py-4 sm:py-6">
           <Breadcrumbs categoryId={categoryId} />
-          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="shrink-0">
+          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="shrink-0 sm:w-[180px] lg:w-[260px]">
               <h1 className="text-xl font-black text-slate-900 sm:text-3xl">Browse listings</h1>
               <p className="mt-1 text-xs text-slate-600 sm:text-sm">
                 {loading ? "Loading…" : `${filtered.length} ads`} · escrow protected
               </p>
             </div>
-            <SearchBar
-              initialQuery={q}
-              initialLocation={city}
-              initialCategory={categoryId}
-              className="!mx-0 mt-0 w-full sm:max-w-lg"
-            />
+            <div className="flex flex-1 justify-center">
+              <SearchBar
+                initialQuery={q}
+                initialLocation={city}
+                initialCategory={categoryId}
+                className="!mx-0 mt-0 w-full sm:max-w-xl"
+              />
+            </div>
+            <div className="hidden sm:block sm:w-[180px] lg:w-[260px]" />
           </div>
         </div>
       </div>

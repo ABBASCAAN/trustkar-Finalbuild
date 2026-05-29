@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { fetchUserChats, deleteChat } from "@/lib/firestore-helpers";
+import { subscribeUserChats, deleteChat } from "@/lib/firestore-helpers";
+import { useChatRead } from "@/hooks/useChatRead";
 import { formatPrice, formatTimeAgo } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -18,12 +19,14 @@ import {
   User,
   Inbox,
   Archive,
+  CheckCheck,
 } from "lucide-react";
 
 export default function ChatsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
+  const { isUnread, markRead, markAllRead, unreadCount } = useChatRead(user?.uid);
 
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,21 +38,13 @@ export default function ChatsPage() {
       router.replace("/auth/login?redirect=/chats");
       return;
     }
-    loadChats();
-  }, [user, authLoading]);
-
-  async function loadChats() {
     setLoading(true);
-    try {
-      const list = await fetchUserChats(user.uid);
+    const unsub = subscribeUserChats(user.uid, (list) => {
       setChats(list);
-    } catch (e) {
-      console.error(e);
-      showToast("Could not load chats", "error");
-    } finally {
       setLoading(false);
-    }
-  }
+    });
+    return () => unsub();
+  }, [user, authLoading, router]);
 
   if (authLoading || (!user && loading)) {
     return (
@@ -65,22 +60,46 @@ export default function ChatsPage() {
   const activeAsSeller = asSeller.filter((c) => c.status !== "closed");
   const archived = chats.filter((c) => c.status === "closed");
 
+  const allActive = chats.filter((c) => c.status !== "closed");
+
   const currentList =
     activeTab === "all"
-      ? chats.filter((c) => c.status !== "closed")
+      ? allActive
       : activeTab === "sellers"
       ? activeAsBuyer
       : activeTab === "buyers"
       ? activeAsSeller
       : archived;
-  const otherLabel =
-    activeTab === "sellers"
-      ? "Seller"
-      : activeTab === "buyers"
-      ? "Buyer"
-      : activeTab === "archived"
-      ? "Archived"
-      : "";
+
+  const tabs = [
+    {
+      key: "all",
+      label: "All Chats",
+      icon: Inbox,
+      list: allActive,
+    },
+    {
+      key: "sellers",
+      label: "Sellers",
+      icon: Store,
+      list: activeAsBuyer,
+    },
+    {
+      key: "buyers",
+      label: "Buyers",
+      icon: ShoppingBag,
+      list: activeAsSeller,
+    },
+    {
+      key: "archived",
+      label: "Archived",
+      icon: Archive,
+      list: archived,
+    },
+  ];
+
+  const totalUnread = unreadCount(allActive);
+  const anyUnread = totalUnread > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/90 to-[var(--tk-bg)] pb-24">
@@ -102,203 +121,62 @@ export default function ChatsPage() {
       </div>
 
       <div className="tk-container py-6 sm:py-8">
-        {/* Four-option selector */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
-          {/* All Chats */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("all")}
-            className={`group relative flex items-center gap-4 rounded-2xl border p-4 text-left transition sm:p-5 ${
-              activeTab === "all"
-                ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-[0_8px_32px_-8px_rgba(14,165,233,0.20)]"
-                : "border-slate-200 bg-white hover:border-sky-200 hover:shadow-md"
-            }`}
-          >
-            <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition sm:h-14 sm:w-14 ${
-                activeTab === "all"
-                  ? "bg-gradient-to-br from-sky-500 to-cyan-700 text-white shadow-md"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-sky-600"
-              }`}
-            >
-              <Inbox size={22} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-900 sm:text-base">All Chats</p>
-              <p className="text-xs text-slate-500 sm:text-sm">
-                Every conversation in one place
-              </p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-xs ${
-                    activeTab === "all"
-                      ? "bg-sky-100 text-sky-800"
-                      : "bg-slate-100 text-slate-600"
+        {/* Compact horizontal tab bar */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+            {tabs.map((t) => {
+              const count = t.list.length;
+              const unread = unreadCount(t.list);
+              const Icon = t.icon;
+              const active = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setActiveTab(t.key)}
+                  className={`relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition sm:px-4 ${
+                    active
+                      ? "bg-gradient-to-r from-sky-500 to-cyan-600 text-white shadow-md shadow-sky-500/20"
+                      : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  {chats.length} chat{chats.length !== 1 ? "s" : ""}
-                </span>
-                {activeTab === "all" && (
-                  <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
-                )}
-              </div>
-            </div>
-            <ArrowRight
-              size={18}
-              className={`shrink-0 transition sm:size-5 ${
-                activeTab === "all"
-                  ? "text-sky-600"
-                  : "text-slate-300 group-hover:text-slate-400"
-              }`}
-            />
-          </button>
+                  <Icon size={18} />
+                  <span className="hidden sm:inline">{t.label}</span>
+                  <span className="sm:hidden">{t.label.split(" ")[0]}</span>
+                  {count > 0 && (
+                    <span
+                      className={`ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-black ${
+                        active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                  {unread > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-2 ring-white">
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Chat with Sellers — I am buyer */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("sellers")}
-            className={`group relative flex items-center gap-4 rounded-2xl border p-4 text-left transition sm:p-5 ${
-              activeTab === "sellers"
-                ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-[0_8px_32px_-8px_rgba(14,165,233,0.20)]"
-                : "border-slate-200 bg-white hover:border-sky-200 hover:shadow-md"
-            }`}
-          >
-            <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition sm:h-14 sm:w-14 ${
-                activeTab === "sellers"
-                  ? "bg-gradient-to-br from-sky-500 to-cyan-700 text-white shadow-md"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-sky-600"
-              }`}
-            >
-              <Store size={22} />
+          {/* Mark all as read */}
+          {anyUnread && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  markAllRead(allActive.map((c) => c.id));
+                  showToast("All chats marked as read", "success");
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 transition hover:bg-sky-100"
+              >
+                <CheckCheck size={14} /> Mark all as read
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-900 sm:text-base">Chat with Sellers</p>
-              <p className="text-xs text-slate-500 sm:text-sm">
-                Conversations you started as a buyer
-              </p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-xs ${
-                    activeTab === "sellers"
-                      ? "bg-sky-100 text-sky-800"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {asBuyer.length} chat{asBuyer.length !== 1 ? "s" : ""}
-                </span>
-                {activeTab === "sellers" && (
-                  <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
-                )}
-              </div>
-            </div>
-            <ArrowRight
-              size={18}
-              className={`shrink-0 transition sm:size-5 ${
-                activeTab === "sellers"
-                  ? "text-sky-600"
-                  : "text-slate-300 group-hover:text-slate-400"
-              }`}
-            />
-          </button>
-
-          {/* Chat with Buyers — I am seller */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("buyers")}
-            className={`group relative flex items-center gap-4 rounded-2xl border p-4 text-left transition sm:p-5 ${
-              activeTab === "buyers"
-                ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-[0_8px_32px_-8px_rgba(14,165,233,0.20)]"
-                : "border-slate-200 bg-white hover:border-sky-200 hover:shadow-md"
-            }`}
-          >
-            <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition sm:h-14 sm:w-14 ${
-                activeTab === "buyers"
-                  ? "bg-gradient-to-br from-sky-500 to-cyan-700 text-white shadow-md"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-sky-600"
-              }`}
-            >
-              <ShoppingBag size={22} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-900 sm:text-base">Chat with Buyers</p>
-              <p className="text-xs text-slate-500 sm:text-sm">
-                Buyers who contacted you about your listings
-              </p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-xs ${
-                    activeTab === "buyers"
-                      ? "bg-sky-100 text-sky-800"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {activeAsSeller.length} chat{activeAsSeller.length !== 1 ? "s" : ""}
-                </span>
-                {activeTab === "buyers" && (
-                  <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
-                )}
-              </div>
-            </div>
-            <ArrowRight
-              size={18}
-              className={`shrink-0 transition sm:size-5 ${
-                activeTab === "buyers"
-                  ? "text-sky-600"
-                  : "text-slate-300 group-hover:text-slate-400"
-              }`}
-            />
-          </button>
-
-          {/* Archived */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("archived")}
-            className={`group relative flex items-center gap-4 rounded-2xl border p-4 text-left transition sm:p-5 ${
-              activeTab === "archived"
-                ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-[0_8px_32px_-8px_rgba(14,165,233,0.20)]"
-                : "border-slate-200 bg-white hover:border-sky-200 hover:shadow-md"
-            }`}
-          >
-            <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition sm:h-14 sm:w-14 ${
-                activeTab === "archived"
-                  ? "bg-gradient-to-br from-sky-500 to-cyan-700 text-white shadow-md"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-sky-600"
-              }`}
-            >
-              <Archive size={22} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-900 sm:text-base">Archived</p>
-              <p className="text-xs text-slate-500 sm:text-sm">
-                Closed or completed conversations
-              </p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-xs ${
-                    activeTab === "archived"
-                      ? "bg-sky-100 text-sky-800"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {archived.length} chat{archived.length !== 1 ? "s" : ""}
-                </span>
-                {activeTab === "archived" && (
-                  <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
-                )}
-              </div>
-            </div>
-            <ArrowRight
-              size={18}
-              className={`shrink-0 transition sm:size-5 ${
-                activeTab === "archived"
-                  ? "text-sky-600"
-                  : "text-slate-300 group-hover:text-slate-400"
-              }`}
-            />
-          </button>
+          )}
         </div>
 
         {/* Chat list */}
@@ -342,14 +220,23 @@ export default function ChatsPage() {
                   ? formatTimeAgo(c.lastMessageAt.seconds)
                   : "";
 
+                const chatUnread = isUnread(c);
                 return (
                   <div
                     key={c.id}
-                    className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-sky-200 hover:shadow-md sm:gap-4 sm:p-4"
+                    className={`group relative flex items-center gap-3 rounded-2xl border bg-white p-3 transition hover:shadow-md sm:gap-4 sm:p-4 ${
+                      chatUnread ? "border-sky-300 ring-1 ring-sky-100" : "border-slate-200 hover:border-sky-200"
+                    }`}
                   >
+                    {/* Unread dot */}
+                    {chatUnread && (
+                      <span className="absolute left-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                    )}
+
                     {/* Ad thumbnail */}
                     <Link
                       href={`/chat/${c.id}`}
+                      onClick={() => markRead(c.id)}
                       className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-16 sm:w-16"
                     >
                       {c.adImage ? (
@@ -369,24 +256,22 @@ export default function ChatsPage() {
 
                     {/* Info */}
                     <div className="min-w-0 flex-1">
-                      <Link href={`/chat/${c.id}`} className="block">
-                        <p className="truncate text-sm font-bold text-slate-900 sm:text-base">
-                          {c.adTitle || "Chat"}
-                        </p>
+                      <Link href={`/chat/${c.id}`} onClick={() => markRead(c.id)} className="block">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-bold text-slate-900 sm:text-base">
+                            {c.adTitle || "Chat"}
+                          </p>
+                          {chatUnread && (
+                            <span className="inline-flex shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                              New
+                            </span>
+                          )}
+                        </div>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500 sm:text-sm">
-                          {otherLabel && (
-                            <span className="flex items-center gap-1">
-                              <User size={12} className="text-slate-400" />
-                              <span className="font-medium text-slate-700">{otherLabel}:</span>
-                              <span className="truncate">{otherName || "User"}</span>
-                            </span>
-                          )}
-                          {!otherLabel && (
-                            <span className="flex items-center gap-1">
-                              <User size={12} className="text-slate-400" />
-                              <span className="truncate">{otherName || "User"}</span>
-                            </span>
-                          )}
+                          <span className="flex items-center gap-1">
+                            <User size={12} className="text-slate-400" />
+                            <span className="truncate">{otherName || "User"}</span>
+                          </span>
                           {timeAgo && (
                             <span className="hidden text-slate-400 sm:inline">· {timeAgo}</span>
                           )}
@@ -418,6 +303,7 @@ export default function ChatsPage() {
                     <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
                       <Link
                         href={`/chat/${c.id}`}
+                        onClick={() => markRead(c.id)}
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-700 transition hover:bg-sky-100 sm:h-10 sm:w-10"
                         title="Open chat"
                       >
