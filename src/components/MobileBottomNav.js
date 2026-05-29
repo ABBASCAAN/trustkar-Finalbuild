@@ -20,13 +20,6 @@ export default function MobileBottomNav() {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const lastHeardRef = useRef(0);
 
-  if (pathname.startsWith("/admin")) return null;
-
-  const isChatsActive = pathname.startsWith("/chats") || pathname.startsWith("/chat");
-  const isAccountActive = pathname.startsWith("/dashboard");
-  const chatsLink = !user ? `/auth/login?redirect=${encodeURIComponent("/chats")}` : "/chats";
-  const accountLink = !user ? `/auth/login?redirect=${encodeURIComponent("/dashboard")}` : "/dashboard";
-
   useEffect(() => {
     if (!user) return;
     lastHeardRef.current = Date.now() / 1000;
@@ -47,6 +40,13 @@ export default function MobileBottomNav() {
     });
     return () => unsub();
   }, [user]);
+
+  if (pathname.startsWith("/admin")) return null;
+
+  const isChatsActive = pathname.startsWith("/chats") || pathname.startsWith("/chat");
+  const isAccountActive = pathname.startsWith("/dashboard");
+  const chatsLink = !user ? `/auth/login?redirect=${encodeURIComponent("/chats")}` : "/chats";
+  const accountLink = !user ? `/auth/login?redirect=${encodeURIComponent("/dashboard")}` : "/dashboard";
 
   return (
     <nav
