@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, LayoutGrid, PlusCircle, MessageCircle, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { subscribeUserChats } from "@/lib/firestore-helpers";
 import { cn } from "@/lib/utils";
 
 const LINK_ITEMS = [
@@ -15,6 +17,8 @@ const LINK_ITEMS = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const lastHeardRef = useRef(0);
 
   if (pathname.startsWith("/admin")) return null;
 
@@ -22,6 +26,27 @@ export default function MobileBottomNav() {
   const isAccountActive = pathname.startsWith("/dashboard");
   const chatsLink = !user ? `/auth/login?redirect=${encodeURIComponent("/chats")}` : "/chats";
   const accountLink = !user ? `/auth/login?redirect=${encodeURIComponent("/dashboard")}` : "/dashboard";
+
+  useEffect(() => {
+    if (!user) return;
+    lastHeardRef.current = Date.now() / 1000;
+    const unsub = subscribeUserChats(user.uid, (chats) => {
+      let count = 0;
+      const threshold = lastHeardRef.current;
+      for (const c of chats) {
+        const t =
+          c.lastMessageAt?.seconds ||
+          c.updatedAt?.seconds ||
+          c.createdAt?.seconds ||
+          0;
+        if (t > threshold && c.lastMessageSenderId && c.lastMessageSenderId !== user.uid) {
+          count++;
+        }
+      }
+      setUnreadChatCount(count);
+    });
+    return () => unsub();
+  }, [user]);
 
   return (
     <nav
@@ -75,6 +100,11 @@ export default function MobileBottomNav() {
           >
             <MessageCircle size={20} strokeWidth={isChatsActive ? 2.5 : 2} />
           </span>
+          {unreadChatCount > 0 && (
+            <span className="absolute right-2 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white ring-2 ring-white">
+              {unreadChatCount > 9 ? "9+" : unreadChatCount}
+            </span>
+          )}
           <span className={cn("text-[10px] font-bold leading-none", isChatsActive && "text-sky-800")}>
             Chats
           </span>

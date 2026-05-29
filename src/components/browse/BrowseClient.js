@@ -175,46 +175,6 @@ function BrowseInner() {
   const FiltersPanel = () => (
     <div className="space-y-5">
       <div>
-        <label className="mb-2 block text-xs font-bold uppercase text-slate-500">Category</label>
-        <SearchableDropdown
-          value={categoryId}
-          onChange={(v) => pushFilters({ category: v })}
-          options={categoryOptions}
-          placeholder="All"
-          hoverOpen={false}
-        />
-        <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto">
-          {availableCategories.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => pushFilters({ category: c.id })}
-                className={`w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold ${
-                  categoryId === c.id ? "bg-sky-100 text-sky-900" : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {c.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <label className="mb-2 block text-xs font-bold uppercase text-slate-500">City</label>
-        <SearchableDropdown
-          value={city}
-          onChange={(v) => pushFilters({ city: v })}
-          options={[
-            { value: "", label: "All Pakistan" },
-            ...CITIES.map((c) => ({ value: c, label: c })),
-          ]}
-          placeholder="All"
-          hoverOpen={false}
-        />
-      </div>
-
-      <div>
         <label className="mb-2 block text-xs font-bold uppercase text-slate-500">Price (PKR)</label>
         <div className="grid grid-cols-2 gap-2">
           <input
@@ -318,16 +278,20 @@ function BrowseInner() {
       <div className="border-b border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 md:bg-gradient-to-r">
         <div className="tk-container py-4 sm:py-6">
           <Breadcrumbs categoryId={categoryId} />
-          <h1 className="text-xl font-black text-slate-900 sm:text-3xl">Browse listings</h1>
-          <p className="mt-0.5 text-xs text-slate-600 sm:mt-1 sm:text-sm">
-            {loading ? "Loading…" : `${filtered.length} ads`} · escrow protected
-          </p>
-          <SearchBar
-            initialQuery={q}
-            initialLocation={city}
-            initialCategory={categoryId}
-            className="mt-4"
-          />
+          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="shrink-0">
+              <h1 className="text-xl font-black text-slate-900 sm:text-3xl">Browse listings</h1>
+              <p className="mt-1 text-xs text-slate-600 sm:text-sm">
+                {loading ? "Loading…" : `${filtered.length} ads`} · escrow protected
+              </p>
+            </div>
+            <SearchBar
+              initialQuery={q}
+              initialLocation={city}
+              initialCategory={categoryId}
+              className="!mx-0 mt-0 w-full sm:max-w-lg"
+            />
+          </div>
         </div>
       </div>
 
@@ -447,7 +411,7 @@ function BrowseInner() {
                 ))}
               </ul>
             ) : (
-              <AdsGrid ads={filtered} showPrice desktopCols="lg:grid-cols-3" />
+              <AdsGrid ads={filtered} showPrice desktopCols="lg:grid-cols-4" />
             )}
           </div>
         </div>

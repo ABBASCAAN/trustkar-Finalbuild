@@ -8,6 +8,7 @@ import MobileBottomNav from "@/components/MobileBottomNav";
 import BackToTop from "@/components/BackToTop";
 import StandaloneBoot from "@/components/StandaloneBoot";
 import GetAppInstallPrompt from "@/components/GetAppInstallPrompt";
+import GlobalChatListener from "@/components/GlobalChatListener";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <ToastProvider>
             <StandaloneBoot />
+            <GlobalChatListener />
             <Navbar />
             <main className="tk-main flex-1 pb-mobile-nav md:pb-0">{children}</main>
             <Footer />

@@ -1538,7 +1538,7 @@ export async function createOrGetChat({ adId, buyerId, sellerId, adTitle, adImag
 }
 
 export async function sendChatMessage(chatId, { senderId, senderName, text, type = "text", offerAmount = null, imageUrl = null }) {
-  return addDoc(collection(db, COLLECTIONS.CHATS, chatId, "messages"), {
+  await addDoc(collection(db, COLLECTIONS.CHATS, chatId, "messages"), {
     senderId,
     senderName: senderName || "",
     text: (text || "").trim(),
@@ -1546,6 +1546,14 @@ export async function sendChatMessage(chatId, { senderId, senderName, text, type
     offerAmount: offerAmount ?? null,
     imageUrl: imageUrl || null,
     createdAt: serverTimestamp(),
+  });
+  // Update parent chat doc so global listeners can detect new messages without
+  // subscribing to every messages subcollection.
+  await updateDoc(doc(db, COLLECTIONS.CHATS, chatId), {
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: senderId,
+    lastMessageText: (text || "").trim().slice(0, 200),
+    updatedAt: serverTimestamp(),
   });
 }
 
@@ -1573,6 +1581,40 @@ export async function fetchUserChats(userId) {
     seen.add(c.id);
     return true;
   });
+}
+
+export function subscribeUserChats(userId, callback) {
+  const qBuyer = query(collection(db, COLLECTIONS.CHATS), where("buyerId", "==", userId), limit(100));
+  const qSeller = query(collection(db, COLLECTIONS.CHATS), where("sellerId", "==", userId), limit(100));
+
+  let buyerDocs = [];
+  let sellerDocs = [];
+
+  function emit() {
+    const map = new Map();
+    for (const d of buyerDocs) map.set(d.id, { id: d.id, ...d.data() });
+    for (const d of sellerDocs) map.set(d.id, { id: d.id, ...d.data() });
+    const all = Array.from(map.values()).sort(
+      (a, b) =>
+        (b.lastMessageAt?.seconds || b.updatedAt?.seconds || b.createdAt?.seconds || 0) -
+        (a.lastMessageAt?.seconds || a.updatedAt?.seconds || a.createdAt?.seconds || 0)
+    );
+    callback(all);
+  }
+
+  const unsubBuyer = onSnapshot(qBuyer, (snap) => {
+    buyerDocs = snap.docs;
+    emit();
+  });
+  const unsubSeller = onSnapshot(qSeller, (snap) => {
+    sellerDocs = snap.docs;
+    emit();
+  });
+
+  return () => {
+    unsubBuyer();
+    unsubSeller();
+  };
 }
 
 export async function acceptChatOffer(chatId, agreedPrice) {

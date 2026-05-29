@@ -17,6 +17,7 @@ import {
   Trash2,
   User,
   Inbox,
+  Archive,
 } from "lucide-react";
 
 export default function ChatsPage() {
@@ -26,7 +27,7 @@ export default function ChatsPage() {
 
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("all"); // "all" | "sellers" | "buyers"
+  const [activeTab, setActiveTab] = useState("all"); // "all" | "sellers" | "buyers" | "archived"
 
   useEffect(() => {
     if (authLoading) return;
@@ -60,10 +61,26 @@ export default function ChatsPage() {
 
   const asBuyer = chats.filter((c) => c.buyerId === user?.uid);
   const asSeller = chats.filter((c) => c.sellerId === user?.uid);
+  const activeAsBuyer = asBuyer.filter((c) => c.status !== "closed");
+  const activeAsSeller = asSeller.filter((c) => c.status !== "closed");
+  const archived = chats.filter((c) => c.status === "closed");
 
   const currentList =
-    activeTab === "all" ? chats : activeTab === "sellers" ? asBuyer : asSeller;
-  const otherLabel = activeTab === "sellers" ? "Seller" : activeTab === "buyers" ? "Buyer" : "";
+    activeTab === "all"
+      ? chats.filter((c) => c.status !== "closed")
+      : activeTab === "sellers"
+      ? activeAsBuyer
+      : activeTab === "buyers"
+      ? activeAsSeller
+      : archived;
+  const otherLabel =
+    activeTab === "sellers"
+      ? "Seller"
+      : activeTab === "buyers"
+      ? "Buyer"
+      : activeTab === "archived"
+      ? "Archived"
+      : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/90 to-[var(--tk-bg)] pb-24">
@@ -85,8 +102,8 @@ export default function ChatsPage() {
       </div>
 
       <div className="tk-container py-6 sm:py-8">
-        {/* Three-option selector */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        {/* Four-option selector */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
           {/* All Chats */}
           <button
             type="button"
@@ -217,7 +234,7 @@ export default function ChatsPage() {
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {asSeller.length} chat{asSeller.length !== 1 ? "s" : ""}
+                  {activeAsSeller.length} chat{activeAsSeller.length !== 1 ? "s" : ""}
                 </span>
                 {activeTab === "buyers" && (
                   <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
@@ -228,6 +245,55 @@ export default function ChatsPage() {
               size={18}
               className={`shrink-0 transition sm:size-5 ${
                 activeTab === "buyers"
+                  ? "text-sky-600"
+                  : "text-slate-300 group-hover:text-slate-400"
+              }`}
+            />
+          </button>
+
+          {/* Archived */}
+          <button
+            type="button"
+            onClick={() => setActiveTab("archived")}
+            className={`group relative flex items-center gap-4 rounded-2xl border p-4 text-left transition sm:p-5 ${
+              activeTab === "archived"
+                ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-[0_8px_32px_-8px_rgba(14,165,233,0.20)]"
+                : "border-slate-200 bg-white hover:border-sky-200 hover:shadow-md"
+            }`}
+          >
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition sm:h-14 sm:w-14 ${
+                activeTab === "archived"
+                  ? "bg-gradient-to-br from-sky-500 to-cyan-700 text-white shadow-md"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-sky-600"
+              }`}
+            >
+              <Archive size={22} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900 sm:text-base">Archived</p>
+              <p className="text-xs text-slate-500 sm:text-sm">
+                Closed or completed conversations
+              </p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-xs ${
+                    activeTab === "archived"
+                      ? "bg-sky-100 text-sky-800"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {archived.length} chat{archived.length !== 1 ? "s" : ""}
+                </span>
+                {activeTab === "archived" && (
+                  <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
+                )}
+              </div>
+            </div>
+            <ArrowRight
+              size={18}
+              className={`shrink-0 transition sm:size-5 ${
+                activeTab === "archived"
                   ? "text-sky-600"
                   : "text-slate-300 group-hover:text-slate-400"
               }`}
@@ -251,17 +317,21 @@ export default function ChatsPage() {
               </h3>
               <p className="mt-1 max-w-sm px-6 text-sm text-slate-500">
                 {activeTab === "all"
-                  ? "You have no conversations yet. Browse listings or post ads to start chatting."
+                  ? "You have no active conversations yet. Browse listings or post ads to start chatting."
                   : activeTab === "sellers"
                   ? "You haven't started any chats with sellers yet. Browse listings and contact a seller to start a conversation."
-                  : "No buyers have contacted you yet. Post ads to start receiving messages."}
+                  : activeTab === "buyers"
+                  ? "No buyers have contacted you yet. Post ads to start receiving messages."
+                  : "No archived conversations. Closed chats will appear here."}
               </p>
-              <Link
-                href={activeTab === "buyers" ? "/post-ad" : "/browse"}
-                className="tk-btn-primary mt-5"
-              >
-                {activeTab === "buyers" ? "Post an ad" : "Browse listings"}
-              </Link>
+              {activeTab !== "archived" && (
+                <Link
+                  href={activeTab === "buyers" ? "/post-ad" : "/browse"}
+                  className="tk-btn-primary mt-5"
+                >
+                  {activeTab === "buyers" ? "Post an ad" : "Browse listings"}
+                </Link>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
