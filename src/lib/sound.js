@@ -1,5 +1,5 @@
-// Simple WebAudio beep for notifications (no external assets).
-// Note: Some browsers require a user gesture before audio can play.
+// Modern hardwood / xylem (marimba-like) notification sound.
+// Uses WebAudio with two partials for a warm, hollow wooden timbre.
 export function playNotificationSound() {
   if (typeof window === "undefined") return;
 
@@ -8,31 +8,47 @@ export function playNotificationSound() {
     if (!AudioCtx) return;
 
     const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
+    const now = ctx.currentTime;
+
+    // Two oscillators create the wooden character
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
     const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
 
-    osc.type = "sine";
-    osc.frequency.value = 880; // A5
+    // Warm low-pass to soften the tone
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(2200, now);
+    filter.Q.setValueAtTime(0.4, now);
 
-    // Quick, non-intrusive envelope
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+    // Fundamental — wooden bar pitch (A4)
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(440, now);
+    osc1.frequency.exponentialRampToValueAtTime(220, now + 0.22);
 
-    osc.connect(gain);
+    // Harmonic partial — gives the hollow xylem body
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(880, now);
+    osc2.frequency.exponentialRampToValueAtTime(440, now + 0.18);
+
+    // Short, percussive envelope
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.start();
-    osc.stop(ctx.currentTime + 0.2);
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.32);
+    osc2.stop(now + 0.32);
 
-    // Release resources
     setTimeout(() => {
-      try {
-        ctx.close();
-      } catch {
-        // ignore
-      }
-    }, 300);
+      try { ctx.close(); } catch { /* ignore */ }
+    }, 400);
   } catch {
     // Ignore autoplay restrictions / unsupported environments.
   }

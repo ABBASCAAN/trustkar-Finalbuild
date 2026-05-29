@@ -17,6 +17,7 @@ import {
   getEscrowSettings,
 } from "@/lib/firestore-helpers";
 import { formatPrice, getMemberSinceYears } from "@/lib/utils";
+import { playNotificationSound } from "@/lib/sound";
 import { calculateEscrowFees } from "@/lib/escrow-engine";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -50,6 +51,8 @@ export default function ChatPage() {
   const chatEndRef = useRef(null);
   const chatScrollRef = useRef(null);
   const shouldScrollRef = useRef(true);
+  const lastMessageIdRef = useRef(null);
+  const soundInitRef = useRef(false);
 
   const isBuyer = chat?.buyerId === user?.uid;
   const isSeller = chat?.sellerId === user?.uid;
@@ -78,6 +81,24 @@ export default function ChatPage() {
       shouldScrollRef.current = false;
     }
   }, [messages]);
+
+  // New message sound + toast
+  useEffect(() => {
+    if (!user) return;
+    if (!messages.length) return;
+    const last = messages[messages.length - 1];
+    if (!last?.id) return;
+    if (!soundInitRef.current) {
+      soundInitRef.current = true;
+      lastMessageIdRef.current = last.id;
+      return;
+    }
+    if (last.senderId !== user.uid && last.id !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = last.id;
+      playNotificationSound();
+      showToast("New message", "info");
+    }
+  }, [messages, user, showToast]);
 
   async function loadChat() {
     try {

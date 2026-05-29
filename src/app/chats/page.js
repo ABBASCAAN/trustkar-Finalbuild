@@ -26,7 +26,7 @@ export default function ChatsPage() {
 
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("sellers"); // "sellers" | "buyers"
+  const [activeTab, setActiveTab] = useState("all"); // "all" | "sellers" | "buyers"
 
   useEffect(() => {
     if (authLoading) return;
@@ -61,8 +61,9 @@ export default function ChatsPage() {
   const asBuyer = chats.filter((c) => c.buyerId === user?.uid);
   const asSeller = chats.filter((c) => c.sellerId === user?.uid);
 
-  const currentList = activeTab === "sellers" ? asBuyer : asSeller;
-  const otherLabel = activeTab === "sellers" ? "Seller" : "Buyer";
+  const currentList =
+    activeTab === "all" ? chats : activeTab === "sellers" ? asBuyer : asSeller;
+  const otherLabel = activeTab === "sellers" ? "Seller" : activeTab === "buyers" ? "Buyer" : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/90 to-[var(--tk-bg)] pb-24">
@@ -84,8 +85,57 @@ export default function ChatsPage() {
       </div>
 
       <div className="tk-container py-6 sm:py-8">
-        {/* Two-option selector */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        {/* Three-option selector */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          {/* All Chats */}
+          <button
+            type="button"
+            onClick={() => setActiveTab("all")}
+            className={`group relative flex items-center gap-4 rounded-2xl border p-4 text-left transition sm:p-5 ${
+              activeTab === "all"
+                ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-[0_8px_32px_-8px_rgba(14,165,233,0.20)]"
+                : "border-slate-200 bg-white hover:border-sky-200 hover:shadow-md"
+            }`}
+          >
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition sm:h-14 sm:w-14 ${
+                activeTab === "all"
+                  ? "bg-gradient-to-br from-sky-500 to-cyan-700 text-white shadow-md"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-sky-50 group-hover:text-sky-600"
+              }`}
+            >
+              <Inbox size={22} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900 sm:text-base">All Chats</p>
+              <p className="text-xs text-slate-500 sm:text-sm">
+                Every conversation in one place
+              </p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold sm:text-xs ${
+                    activeTab === "all"
+                      ? "bg-sky-100 text-sky-800"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {chats.length} chat{chats.length !== 1 ? "s" : ""}
+                </span>
+                {activeTab === "all" && (
+                  <span className="text-[10px] font-bold text-sky-600 sm:text-xs">Active</span>
+                )}
+              </div>
+            </div>
+            <ArrowRight
+              size={18}
+              className={`shrink-0 transition sm:size-5 ${
+                activeTab === "all"
+                  ? "text-sky-600"
+                  : "text-slate-300 group-hover:text-slate-400"
+              }`}
+            />
+          </button>
+
           {/* Chat with Sellers — I am buyer */}
           <button
             type="button"
@@ -200,15 +250,17 @@ export default function ChatsPage() {
                 No chats yet
               </h3>
               <p className="mt-1 max-w-sm px-6 text-sm text-slate-500">
-                {activeTab === "sellers"
+                {activeTab === "all"
+                  ? "You have no conversations yet. Browse listings or post ads to start chatting."
+                  : activeTab === "sellers"
                   ? "You haven't started any chats with sellers yet. Browse listings and contact a seller to start a conversation."
                   : "No buyers have contacted you yet. Post ads to start receiving messages."}
               </p>
               <Link
-                href={activeTab === "sellers" ? "/browse" : "/post-ad"}
+                href={activeTab === "buyers" ? "/post-ad" : "/browse"}
                 className="tk-btn-primary mt-5"
               >
-                {activeTab === "sellers" ? "Browse listings" : "Post an ad"}
+                {activeTab === "buyers" ? "Post an ad" : "Browse listings"}
               </Link>
             </div>
           ) : (
@@ -252,11 +304,19 @@ export default function ChatsPage() {
                           {c.adTitle || "Chat"}
                         </p>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500 sm:text-sm">
-                          <span className="flex items-center gap-1">
-                            <User size={12} className="text-slate-400" />
-                            <span className="font-medium text-slate-700">{otherLabel}:</span>
-                            <span className="truncate">{otherName || "User"}</span>
-                          </span>
+                          {otherLabel && (
+                            <span className="flex items-center gap-1">
+                              <User size={12} className="text-slate-400" />
+                              <span className="font-medium text-slate-700">{otherLabel}:</span>
+                              <span className="truncate">{otherName || "User"}</span>
+                            </span>
+                          )}
+                          {!otherLabel && (
+                            <span className="flex items-center gap-1">
+                              <User size={12} className="text-slate-400" />
+                              <span className="truncate">{otherName || "User"}</span>
+                            </span>
+                          )}
                           {timeAgo && (
                             <span className="hidden text-slate-400 sm:inline">· {timeAgo}</span>
                           )}

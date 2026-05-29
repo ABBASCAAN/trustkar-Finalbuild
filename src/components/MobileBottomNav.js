@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, PlusCircle, Bell, User } from "lucide-react";
+import { Home, LayoutGrid, PlusCircle, MessageCircle, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { subscribeNotifications } from "@/lib/firestore-helpers";
 import { cn } from "@/lib/utils";
 
 const LINK_ITEMS = [
@@ -17,21 +15,12 @@ const LINK_ITEMS = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = subscribeNotifications(user.uid, (list) => {
-      setUnreadCount(list.reduce((s, n) => s + (!n.read ? 1 : 0), 0));
-    });
-    return () => unsub();
-  }, [user]);
 
   if (pathname.startsWith("/admin")) return null;
 
-  const isNotificationsActive = pathname === "/notifications";
+  const isChatsActive = pathname.startsWith("/chats") || pathname.startsWith("/chat");
   const isAccountActive = pathname.startsWith("/dashboard");
-  const notificationsLink = !user ? `/auth/login?redirect=${encodeURIComponent("/notifications")}` : "/notifications";
+  const chatsLink = !user ? `/auth/login?redirect=${encodeURIComponent("/chats")}` : "/chats";
   const accountLink = !user ? `/auth/login?redirect=${encodeURIComponent("/dashboard")}` : "/dashboard";
 
   return (
@@ -70,29 +59,24 @@ export default function MobileBottomNav() {
           );
         })}
 
-        {/* Notifications */}
+        {/* Chats */}
         <Link
-          href={notificationsLink}
+          href={chatsLink}
           className={cn(
             "relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-0.5",
-            isNotificationsActive ? "text-sky-700" : "text-slate-500"
+            isChatsActive ? "text-sky-700" : "text-slate-500"
           )}
         >
           <span
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-2xl transition",
-              isNotificationsActive && "bg-sky-50"
+              isChatsActive && "bg-sky-50"
             )}
           >
-            <Bell size={20} strokeWidth={isNotificationsActive ? 2.5 : 2} />
+            <MessageCircle size={20} strokeWidth={isChatsActive ? 2.5 : 2} />
           </span>
-          {unreadCount > 0 && (
-            <span className="absolute right-2 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white ring-2 ring-white">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-          <span className={cn("text-[10px] font-bold leading-none", isNotificationsActive && "text-sky-800")}>
-            Notifications
+          <span className={cn("text-[10px] font-bold leading-none", isChatsActive && "text-sky-800")}>
+            Chats
           </span>
         </Link>
 
