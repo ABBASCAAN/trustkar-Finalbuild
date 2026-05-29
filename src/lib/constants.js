@@ -134,6 +134,8 @@ export const CONDITIONS = ["Brand New", "Used", "Broken/For Parts"];
 export const NOTIFICATION_TYPES = {
   CONTACT_SELLER: "contact_seller",
   SELLER_REPLY: "seller_reply",
+  DEAL_CREATED: "deal_created",
+  PAYMENT_SUBMITTED: "payment_submitted",
   PAYMENT_VERIFIED: "payment_verified",
   ITEM_RECEIVED: "item_received",
   PAYMENT_RELEASED: "payment_released",

@@ -732,7 +732,7 @@ export default function DealRoomPage() {
     isSeller && tx.status === ESCROW_STATUS.FUNDS_HELD && tx.status !== ESCROW_STATUS.DISPUTED;
   const canConfirmReceipt = isBuyer && tx.status === ESCROW_STATUS.DISPATCHED;
   const canAccept = isBuyer && tx.status === ESCROW_STATUS.INSPECTION;
-  const canReject = isBuyer && [ESCROW_STATUS.INSPECTION, ESCROW_STATUS.DISPATCHED, ESCROW_STATUS.PENDING_RELEASE].includes(tx.status);
+  const canReject = isBuyer && tx.status === ESCROW_STATUS.INSPECTION;
   const canSubmitReturn = isBuyer && tx.status === ESCROW_STATUS.REJECTED;
   const canReviewReturn = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT;
   const canAdminRefund = isAdmin && tx.status === ESCROW_STATUS.SELLER_REVIEW;
@@ -774,7 +774,7 @@ export default function DealRoomPage() {
 
       {/* My Status Bar */}
       {!isAdmin && (
-        <div className="tk-container pb-4">
+        <div className="tk-container pt-2 pb-2">
           <div className={`mx-auto max-w-4xl rounded-xl border p-3 shadow-sm sm:p-4 ${
             myStatus.color === "amber" ? "border-amber-200 bg-amber-50" :
             myStatus.color === "sky" ? "border-sky-200 bg-sky-50" :
@@ -812,7 +812,7 @@ export default function DealRoomPage() {
         </div>
       )}
 
-      <div className="tk-container py-6 lg:py-8">
+      <div className="tk-container pt-3 pb-6 lg:pt-4 lg:pb-8">
         <div className="mx-auto max-w-4xl">
           <div className="tk-card flex min-h-[420px] flex-col !p-0">
             {/* Participants header — clickable profiles, grid centered */}
@@ -867,15 +867,10 @@ export default function DealRoomPage() {
             {/* Dispute banner & evidence — integrated in deal room */}
             {tx.status === ESCROW_STATUS.DISPUTED && disputeData && (
               <div className="space-y-3 border-b border-red-100 bg-red-50/40 p-3 sm:p-4">
-                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+                <div className="flex flex-col items-center rounded-xl border border-red-200 bg-red-50 p-3 text-center">
                   <AlertTriangle size={18} className="text-red-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-red-800">Dispute active — funds frozen</p>
-                    <p className="text-xs text-red-700">Reason: {disputeData.reason}</p>
-                  </div>
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700">
-                    {disputeData.status}
-                  </span>
+                  <p className="mt-1 text-sm font-bold text-red-800">Dispute active — funds frozen</p>
+                  <p className="mt-0.5 text-xs text-red-700">Reason: {disputeData.reason}</p>
                 </div>
 
                 {disputeData.description && (

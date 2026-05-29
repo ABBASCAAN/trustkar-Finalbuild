@@ -110,40 +110,79 @@ function DisputeResolveCard({ dispute, onResolved, adminId, resolve, showToast }
     }
   }
 
+  const allEvidence = [
+    ...(dispute.evidenceUrls || []),
+    ...(dispute.rejectionEvidenceUrls || []),
+  ];
+
   return (
     <div className="tk-card space-y-3 !p-4">
-      <p className="font-bold">{dispute.reason}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-bold">{dispute.reason}</p>
+        <Link
+          href={`/deal/${dispute.transactionId}`}
+          className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700 hover:bg-sky-200"
+        >
+          Open deal chat
+        </Link>
+      </div>
       <p className="text-sm text-slate-600 line-clamp-2">{dispute.description}</p>
-      <Link href={`/disputes/${dispute.id}`} className="text-xs text-sky-700 underline">
-        View evidence
-      </Link>
-      <select
-        value={outcome}
-        onChange={(e) => setOutcome(e.target.value)}
-        className="tk-input w-full !py-2 text-sm"
-      >
-        <option value={DISPUTE_OUTCOMES.FULL_REFUND}>Full refund to buyer</option>
-        <option value={DISPUTE_OUTCOMES.PARTIAL_REFUND}>Partial refund</option>
-        <option value={DISPUTE_OUTCOMES.RELEASE_SELLER}>Release to seller</option>
-      </select>
-      {outcome === DISPUTE_OUTCOMES.PARTIAL_REFUND && (
+      {dispute.rejectionReason && (
+        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+          <span className="font-bold">Buyer rejection reason:</span> {dispute.rejectionReason}
+        </div>
+      )}
+
+      {/* Evidence viewer */}
+      {allEvidence.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase text-slate-500">Evidence ({allEvidence.length})</p>
+          <div className="grid grid-cols-4 gap-2">
+            {allEvidence.map((url, i) => (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+              >
+                <Image src={url} alt={`Evidence ${i + 1}`} fill className="object-cover" unoptimized />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-bold uppercase text-slate-500">TrustKar Team Resolution</p>
+        <select
+          value={outcome}
+          onChange={(e) => setOutcome(e.target.value)}
+          className="tk-input w-full !py-2 text-sm"
+        >
+          <option value={DISPUTE_OUTCOMES.FULL_REFUND}>Full refund to buyer</option>
+          <option value={DISPUTE_OUTCOMES.PARTIAL_REFUND}>Partial refund</option>
+          <option value={DISPUTE_OUTCOMES.RELEASE_SELLER}>Release to seller</option>
+        </select>
+        {outcome === DISPUTE_OUTCOMES.PARTIAL_REFUND && (
+          <input
+            type="number"
+            placeholder="Refund amount PKR"
+            value={partialAmount}
+            onChange={(e) => setPartialAmount(e.target.value)}
+            className="tk-input w-full !py-2 text-sm"
+          />
+        )}
         <input
-          type="number"
-          placeholder="Refund amount PKR"
-          value={partialAmount}
-          onChange={(e) => setPartialAmount(e.target.value)}
+          placeholder="Resolution note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
           className="tk-input w-full !py-2 text-sm"
         />
-      )}
-      <input
-        placeholder="Resolution note"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        className="tk-input w-full !py-2 text-sm"
-      />
-      <button type="button" disabled={busy} onClick={submit} className="tk-btn-primary w-full !bg-sky-700">
-        {busy ? "Saving…" : "Resolve dispute"}
-      </button>
+        <button type="button" disabled={busy} onClick={submit} className="tk-btn-primary w-full !bg-sky-700">
+          {busy ? "Saving…" : "Resolve dispute"}
+        </button>
+      </div>
     </div>
   );
 }

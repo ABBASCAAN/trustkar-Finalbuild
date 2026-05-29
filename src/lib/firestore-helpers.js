@@ -370,6 +370,13 @@ export async function createTransaction({
     meta: { escrowId, amount, escrowFee },
   });
   await sendSystemMessage(ref.id, "Deal create ho gayi hai. Buyer total amount TrustKar Escrow Wallet (Easypaisa, JazzCash ya Bank Account) mein transfer kare aur payment proof ya Transaction ID submit kare.");
+  await createNotification({
+    userId: sellerId,
+    type: NOTIFICATION_TYPES.DEAL_CREATED,
+    title: "New escrow deal",
+    body: `Buyer started escrow for ${adTitle || "your ad"}. Await payment.`,
+    link: `/deal/${ref.id}`,
+  });
   return { id: ref.id, escrowId, escrowFee, sellerPayout };
 }
 
@@ -413,6 +420,13 @@ export async function submitPaymentProof(transactionId, { text, imageUrl, method
     imageUrl: imageUrl || null,
   });
   await sendSystemMessage(transactionId, "Buyer ne payment proof submit kar diya hai. Verification ke baad seller ko shipment instructions di jayengi.");
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.PAYMENT_SUBMITTED,
+    title: "Buyer submitted payment proof",
+    body: `Awaiting TrustKar verification for ${tx.adTitle || "your deal"}.`,
+    link: `/deal/${transactionId}`,
+  });
 }
 
 export async function adminVerifyPayment(transactionId, adminId) {
@@ -570,6 +584,13 @@ export async function buyerConfirmReceipt(transactionId, buyerId) {
     buyerReceivedAt: serverTimestamp(),
   });
   await sendSystemMessage(transactionId, "Buyer ne item receive kar liya hai. Inspection Period shuru ho raha hai.");
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.ITEM_RECEIVED,
+    title: "Buyer received item",
+    body: "Buyer confirmed parcel received. Inspection period started.",
+    link: `/deal/${transactionId}`,
+  });
   await startInspectionWindow(transactionId);
 }
 
@@ -802,6 +823,19 @@ export async function raiseDealDispute(transactionId, userId, { reason, descript
   });
   await sendSystemMessage(transactionId, `A dispute has been opened. Reason: ${reason}. Admin will review and resolve.`);
 
+  // Send dispute evidence as chat messages so all parties can see them
+  if (evidenceUrls?.length > 0) {
+    for (const url of evidenceUrls) {
+      await sendDealMessage(transactionId, {
+        senderId: userId,
+        senderRole: userId === tx.buyerId ? "buyer" : "seller",
+        senderName: userId === tx.buyerId ? (tx.buyerName || "Buyer") : (tx.sellerName || "Seller"),
+        text: "Dispute evidence attached",
+        imageUrl: url,
+      });
+    }
+  }
+
   return disputeRef.id;
 }
 
@@ -865,6 +899,20 @@ export async function adminResolveDispute(disputeId, adminId, { outcome, partial
   });
 
   await sendSystemMessage(dispute.transactionId, `Dispute resolved by TrustKar Team. Outcome: ${outcome}${note ? ". " + note : ""}.`);
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+    title: "Dispute resolved",
+    body: `Outcome: ${outcome}${note ? ". " + note : ""}.`,
+    link: `/deal/${dispute.transactionId}`,
+  });
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+    title: "Dispute resolved",
+    body: `Outcome: ${outcome}${note ? ". " + note : ""}.`,
+    link: `/deal/${dispute.transactionId}`,
+  });
 }
 
 export async function fetchOpenDisputes() {
@@ -910,6 +958,19 @@ export async function buyerRejectItem(transactionId, buyerId, { reason, evidence
     link: `/deal/${transactionId}`,
   });
   await sendSystemMessage(transactionId, `Buyer ne dispute submit kiya hai. TrustKar Team evidence review kar rahi hai. Reason: ${reason || "Not specified"}. Buyer must ship the item back within ${DISPATCH_DEADLINE_HOURS} hours.`);
+
+  // Send rejection evidence as chat messages so buyer, seller & TrustKar Team can all see them
+  if (evidenceUrls?.length > 0) {
+    for (const url of evidenceUrls) {
+      await sendDealMessage(transactionId, {
+        senderId: tx.buyerId,
+        senderRole: "buyer",
+        senderName: tx.buyerName || "Buyer",
+        text: "Rejection evidence attached",
+        imageUrl: url,
+      });
+    }
+  }
 }
 
 /** Buyer submits return shipment proof */
@@ -944,6 +1005,15 @@ export async function buyerSubmitReturnShipment(transactionId, buyerId, { tracki
     link: `/deal/${transactionId}`,
   });
   await sendSystemMessage(transactionId, `Buyer ne return shipment submit kar di hai. Verification jari hai. Tracking: ${trackingId}. Seller has ${INSPECTION_PERIOD_HOURS} hours to review the returned item.`);
+
+  // Send return shipment proof as chat message so all parties can see it
+  await sendDealMessage(transactionId, {
+    senderId: tx.buyerId,
+    senderRole: "buyer",
+    senderName: tx.buyerName || "Buyer",
+    text: `Return shipment submitted${courierName ? " via " + courierName : ""}. Tracking: ${trackingId}.`,
+    imageUrl: proofUrl || null,
+  });
 }
 
 /** Seller reviews returned item */
@@ -984,6 +1054,8 @@ export async function sellerReviewReturn(transactionId, sellerId, { accept, note
       reason: "Seller rejected return",
       description: note || "Seller reviewed the returned item and rejected it.",
       evidenceUrls: [],
+      rejectionEvidenceUrls: tx.rejectionEvidenceUrls || [],
+      rejectionReason: tx.rejectionReason || "",
       status: "open",
       outcome: null,
       adminAssigned: false,
