@@ -1,10 +1,8 @@
 import { Inter } from "next/font/google";
-import { Suspense } from "react";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/Navbar";
-import StickySearchBar from "@/components/StickySearchBar";
 import Footer from "@/components/Footer";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import BackToTop from "@/components/BackToTop";
@@ -49,9 +47,6 @@ export default function RootLayout({ children }) {
           <ToastProvider>
             <StandaloneBoot />
             <Navbar />
-            <Suspense>
-              <StickySearchBar />
-            </Suspense>
             <main className="tk-main flex-1 pb-mobile-nav md:pb-0">{children}</main>
             <Footer />
             <MobileBottomNav />
