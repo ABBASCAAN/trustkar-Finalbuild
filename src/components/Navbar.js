@@ -39,10 +39,10 @@ export default function Navbar() {
             {user && (
               <Link
                 href="/chats"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-cyan-300 hover:text-sky-700 hover:shadow-md active:scale-95 sm:h-11 sm:w-11"
                 title="Chats"
               >
-                <MessageCircle size={18} />
+                <MessageCircle size={18} className="transition-transform duration-300" />
               </Link>
             )}
             <NotificationsDropdown />
