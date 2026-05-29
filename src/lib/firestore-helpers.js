@@ -1191,7 +1191,7 @@ export async function sellerReviewReturn(transactionId, sellerId, { accept, note
       sellerId: tx.sellerId,
       raisedBy: sellerId,
       reason: "Seller rejected return",
-      description: note || "Seller reviewed the returned item and rejected it.",
+      description: note || "Seller rejected the returned item.",
       evidenceUrls: [],
       rejectionEvidenceUrls: tx.rejectionEvidenceUrls || [],
       rejectionReason: tx.rejectionReason || "",
@@ -1228,6 +1228,40 @@ export async function sellerReviewReturn(transactionId, sellerId, { accept, note
 
     await sendSystemMessage(transactionId, "Seller rejected the return. A dispute has been opened. TrustKar will review all evidence and resolve the case.");
   }
+}
+
+/** Send additional dispute evidence as chat messages visible to all parties (buyer, seller, admin) */
+export async function sendDisputeEvidenceAsMessages(transactionId, userId, evidenceUrls = [], note = "Additional evidence") {
+  if (!evidenceUrls?.length) return;
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Transaction not found");
+  const role = userId === tx.buyerId ? "buyer" : userId === tx.sellerId ? "seller" : "admin";
+  const name = role === "buyer" ? tx.buyerName || "Buyer" : role === "seller" ? tx.sellerName || "Seller" : "TrustKar Team";
+
+  for (const url of evidenceUrls) {
+    await sendDealMessage(transactionId, {
+      senderId: userId,
+      senderRole: role,
+      senderName: name,
+      text: note,
+      imageUrl: url,
+    });
+  }
+}
+
+/** Soft-delete a chat message (admin only) */
+export async function deleteChatMessage(transactionId, messageId, userId) {
+  const msgRef = doc(db, COLLECTIONS.TRANSACTIONS, transactionId, "messages", messageId);
+  const msgSnap = await getDoc(msgRef);
+  if (!msgSnap.exists()) throw new Error("Message not found");
+  const msg = msgSnap.data();
+  if (msg.senderId !== userId && msg.senderRole !== "admin") throw new Error("You can only delete your own messages.");
+  await updateDoc(msgRef, {
+    deleted: true,
+    deletedAt: serverTimestamp(),
+    text: "This message was deleted.",
+    imageUrl: null,
+  });
 }
 
 /** Admin refunds buyer after seller accepted return or direct admin action */

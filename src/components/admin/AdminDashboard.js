@@ -1069,18 +1069,33 @@ export default function AdminDashboard() {
             unlocked={txUnlocked}
           >
             <ul className="mt-4 space-y-2">
-              {filteredTransactions.map((t) => (
-                <li key={t.id} className="tk-card flex flex-wrap justify-between gap-2 !p-3">
-                  <div>
-                    <p className="font-bold">{t.adTitle}</p>
-                    <p className="font-mono text-xs text-cyan-700">{t.escrowId}</p>
-                    <p className="text-sm capitalize">{t.status?.replace(/_/g, " ")}</p>
-                  </div>
-                  <Link href={`/deal/${t.id}`} className="tk-btn-outline !py-1 !text-xs">
-                    Open deal room
-                  </Link>
-                </li>
-              ))}
+              {filteredTransactions.map((t) => {
+                const isDisputed = t.status === ESCROW_STATUS.DISPUTED || t.disputeId;
+                return (
+                  <li key={t.id} className={`tk-card flex flex-wrap justify-between gap-2 !p-3 ${isDisputed ? "border-red-300 bg-red-50/50" : ""}`}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold">{t.adTitle}</p>
+                        {isDisputed && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">DISPUTE OPEN</span>
+                        )}
+                      </div>
+                      <p className="font-mono text-xs text-cyan-700">{t.escrowId}</p>
+                      <p className="text-sm capitalize">{t.status?.replace(/_/g, " ")}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Link href={`/deal/${t.id}`} className="tk-btn-outline !py-1 !text-xs text-center">
+                        Open deal room
+                      </Link>
+                      {isDisputed && (
+                        <Link href={`/deal/${t.id}`} className="rounded-full bg-red-100 px-2 py-1 text-center text-[10px] font-bold text-red-700 hover:bg-red-200 transition">
+                          Open dispute chat
+                        </Link>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </LockedSection>
         )}

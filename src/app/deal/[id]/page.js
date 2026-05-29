@@ -26,6 +26,8 @@ import {
   adminApproveReturn,
   adminVerifyReturnShipment,
   sellerConfirmReturnReceipt,
+  sendDisputeEvidenceAsMessages,
+  deleteChatMessage,
   subscribeTransaction,
   createNotification,
   createFeaturedAdReview,
@@ -60,6 +62,8 @@ import {
   Sparkles,
   Smartphone,
   Gavel,
+  Paperclip,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { playNotificationSound } from "@/lib/sound";
@@ -132,6 +136,10 @@ export default function DealRoomPage() {
   const [disputeDescription, setDisputeDescription] = useState("");
   const [disputeEvidenceFiles, setDisputeEvidenceFiles] = useState([]);
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
+  /* Additional dispute evidence upload */
+  const [additionalEvidenceFiles, setAdditionalEvidenceFiles] = useState([]);
+  const [additionalEvidenceSubmitting, setAdditionalEvidenceSubmitting] = useState(false);
 
   /* Chat image upload */
   const [chatImageFile, setChatImageFile] = useState(null);
@@ -578,6 +586,37 @@ export default function DealRoomPage() {
     }
   }
 
+  async function handleSubmitAdditionalEvidence() {
+    if (!additionalEvidenceFiles.length) {
+      showToast("Select at least one evidence file", "error");
+      return;
+    }
+    setAdditionalEvidenceSubmitting(true);
+    try {
+      const urls = await Promise.all(
+        additionalEvidenceFiles.map((file) => uploadImageToCloudinary(file))
+      );
+      const note = isBuyer ? "Buyer submitted additional evidence" : isSeller ? "Seller submitted additional evidence" : "TrustKar Team uploaded additional evidence";
+      await sendDisputeEvidenceAsMessages(id, user.uid, urls, note);
+      showToast("Additional evidence uploaded to chat", "success");
+      setAdditionalEvidenceFiles([]);
+    } catch (e) {
+      showToast(e.message || "Could not upload evidence", "error");
+    } finally {
+      setAdditionalEvidenceSubmitting(false);
+    }
+  }
+
+  async function handleDeleteMessage(messageId) {
+    if (!confirm("Delete this message?")) return;
+    try {
+      await deleteChatMessage(id, messageId, user.uid);
+      showToast("Message deleted", "success");
+    } catch (e) {
+      showToast(e.message || "Could not delete message", "error");
+    }
+  }
+
   function renderPaymentDetails() {
     if (!paymentSettings) return null;
     const m = paymentSettings[paymentMethod];
@@ -796,6 +835,7 @@ export default function DealRoomPage() {
   const canSubmitReturn = isBuyer && tx.status === ESCROW_STATUS.REJECTED && tx.returnApprovedAt;
   const canSellerConfirmReturnReceipt = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && tx.returnShipmentVerifiedByAdminAt && !tx.sellerReceivedReturnAt;
   const canSellerReviewReturn = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && tx.sellerReceivedReturnAt && !tx.sellerReviewedAt;
+  const canUploadAdditionalEvidence = (isBuyer || isSeller) && tx.status === ESCROW_STATUS.DISPUTED;
   const canAdminRefund = isAdmin && tx.status === ESCROW_STATUS.SELLER_REVIEW;
   const canAdminApproveReturn = isAdmin && tx.status === ESCROW_STATUS.REJECTED && !tx.returnApprovedAt;
   const canAdminVerifyReturnShipment = isAdmin && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT && !tx.returnShipmentVerifiedByAdminAt;
@@ -1030,6 +1070,7 @@ export default function DealRoomPage() {
               {messages.map((m) => {
                 const isMe = m.senderId === user?.uid;
                 const isSystem = m.system === true || m.senderId === "system";
+                const isAdminMsg = m.senderRole === "admin" && !isSystem;
                 const roleLabel = ROLE_LABELS[m.senderRole] || m.senderRole;
                 const displayName = m.senderName || roleLabel;
                 const timeStr = m.createdAt
@@ -1037,13 +1078,52 @@ export default function DealRoomPage() {
                       ? m.createdAt.toDate().toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })
                       : new Date(m.createdAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }))
                   : null;
+                const isDeleted = m.deleted === true;
 
-                if (isSystem || m.senderRole === "admin") {
+                if (isSystem) {
                   return (
                     <div key={m.id} className="flex justify-center">
-                      <div className="max-w-[92%] rounded-2xl bg-sky-50 px-4 py-2 text-center text-xs font-medium text-sky-800 shadow-sm">
+                      <div className={`max-w-[92%] rounded-2xl px-4 py-2 text-center text-xs font-medium shadow-sm ${isDeleted ? "bg-slate-100 text-slate-400 italic" : "bg-sky-50 text-sky-800"}`}>
                         <p className="text-center font-bold">TrustKar Team</p>
                         <p className="mt-0.5 text-center">{m.text}</p>
+                        {timeStr && <p className="mt-1 text-center text-[10px] opacity-60">{timeStr}</p>}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (isAdminMsg) {
+                  return (
+                    <div key={m.id} className="flex justify-center">
+                      <div className={`max-w-[92%] rounded-2xl border px-4 py-2 text-xs font-medium shadow-sm ${isDeleted ? "bg-slate-100 text-slate-400 italic border-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"}`}>
+                        <div className="flex items-center justify-center gap-1">
+                          <p className="text-center font-bold">{displayName}</p>
+                          {isMe && !isDeleted && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(m.id)}
+                              className="ml-1 rounded-full p-0.5 text-slate-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete message"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-center">{m.text}</p>
+                        {!isDeleted && m.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => { setZoomImageUrl(m.imageUrl); setZoomedIn(false); }}
+                            className={`group relative mx-auto mt-1.5 block overflow-hidden rounded-lg border border-slate-200 ${
+                              m.text ? "h-16 w-16 sm:h-20 sm:w-20" : "h-32 w-32 sm:h-40 sm:w-40"
+                            }`}
+                          >
+                            <Image src={m.imageUrl} alt="Attachment" fill className="object-cover transition group-hover:scale-110" unoptimized />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
+                              <ZoomIn size={14} className="text-white opacity-0 transition group-hover:opacity-100 sm:size-5" />
+                            </div>
+                          </button>
+                        )}
                         {timeStr && <p className="mt-1 text-center text-[10px] opacity-60">{timeStr}</p>}
                       </div>
                     </div>
@@ -1056,7 +1136,9 @@ export default function DealRoomPage() {
                 return (
                   <div key={m.id} className={`flex ${isBuyerMsg ? "justify-start" : isSellerMsg ? "justify-end" : "justify-center"}`}>
                     <div className={`max-w-[92%] rounded-2xl border px-2.5 py-2 text-sm sm:max-w-[85%] sm:px-3 ${
-                      isBuyerMsg
+                      isDeleted
+                        ? "bg-slate-50 border-slate-200 text-slate-400 italic"
+                        : isBuyerMsg
                         ? "bg-sky-50 border-sky-200 text-sky-900"
                         : isSellerMsg
                         ? "bg-emerald-50 border-emerald-200 text-emerald-900"
@@ -1066,7 +1148,7 @@ export default function DealRoomPage() {
                         {displayName}{isMe ? " · You" : ""}
                       </p>
                       <p className="mt-0.5">{m.text}</p>
-                      {m.imageUrl && (
+                      {!isDeleted && m.imageUrl && (
                         <button
                           type="button"
                           onClick={() => { setZoomImageUrl(m.imageUrl); setZoomedIn(false); }}
@@ -1288,6 +1370,39 @@ export default function DealRoomPage() {
                         <AlertTriangle size={16} /> Returned Item Received But Not Satisfied
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Upload additional dispute evidence */}
+                {canUploadAdditionalEvidence && (
+                  <div className="rounded-xl border border-amber-100 bg-white p-3 shadow-sm space-y-3 sm:p-4 sm:col-span-2">
+                    <p className="text-sm font-bold flex items-center gap-2 text-amber-700">
+                      <Paperclip size={14} /> Upload additional evidence
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Share photos or documents to support your case. Evidence will be visible to buyer, seller, and TrustKar Team.
+                    </p>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-amber-300 px-3 py-2 text-xs font-semibold text-amber-700">
+                      <Paperclip size={14} /> Attach files
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => setAdditionalEvidenceFiles(Array.from(e.target.files || []))}
+                      />
+                    </label>
+                    {additionalEvidenceFiles.length > 0 && (
+                      <p className="text-xs text-slate-500">{additionalEvidenceFiles.length} file(s) selected</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSubmitAdditionalEvidence}
+                      disabled={additionalEvidenceSubmitting || !additionalEvidenceFiles.length}
+                      className="w-full rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {additionalEvidenceSubmitting ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Submit additional evidence"}
+                    </button>
                   </div>
                 )}
 
