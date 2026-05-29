@@ -10,6 +10,7 @@ import {
   fetchTransactionById,
   subscribeDisputeMessages,
   sendDisputeMessage,
+  adminResolveDispute,
 } from "@/lib/firestore-helpers";
 import { ESCROW_STATUS_LABELS, DISPUTE_OUTCOMES } from "@/lib/constants";
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -53,6 +54,10 @@ export default function DisputeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [resolveOutcome, setResolveOutcome] = useState(DISPUTE_OUTCOMES.FULL_REFUND);
+  const [resolvePartial, setResolvePartial] = useState("");
+  const [resolveNote, setResolveNote] = useState("");
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -101,6 +106,25 @@ export default function DisputeDetailPage() {
       showToast("Could not send message", "error");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleResolve() {
+    if (!isAdmin) return;
+    setResolving(true);
+    try {
+      await adminResolveDispute(id, user.uid, {
+        outcome: resolveOutcome,
+        partialAmount: resolveOutcome === DISPUTE_OUTCOMES.PARTIAL_REFUND ? Number(resolvePartial) : null,
+        note: resolveNote,
+      });
+      showToast("Dispute resolved successfully", "success");
+      const d = await fetchDisputeById(id);
+      setDispute(d);
+    } catch (err) {
+      showToast(err.message || "Failed to resolve", "error");
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -234,6 +258,50 @@ export default function DisputeDetailPage() {
                 <p className="mt-1 text-xs text-amber-700">
                   {new Date(dispute.responseDeadline).toLocaleString("en-PK")}
                 </p>
+              </div>
+            )}
+
+            {/* Admin resolution panel */}
+            {isAdmin && dispute.status === "open" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-slate-800">
+                  <Gavel size={16} />
+                  <p className="text-sm font-bold">Resolve dispute</p>
+                </div>
+                <div className="mt-3 space-y-3">
+                  <select
+                    value={resolveOutcome}
+                    onChange={(e) => setResolveOutcome(e.target.value)}
+                    className="tk-input w-full !py-2 text-sm"
+                  >
+                    <option value={DISPUTE_OUTCOMES.FULL_REFUND}>Full refund to buyer</option>
+                    <option value={DISPUTE_OUTCOMES.PARTIAL_REFUND}>Partial refund</option>
+                    <option value={DISPUTE_OUTCOMES.RELEASE_SELLER}>Release to seller</option>
+                  </select>
+                  {resolveOutcome === DISPUTE_OUTCOMES.PARTIAL_REFUND && (
+                    <input
+                      type="number"
+                      placeholder="Refund amount PKR"
+                      value={resolvePartial}
+                      onChange={(e) => setResolvePartial(e.target.value)}
+                      className="tk-input w-full !py-2 text-sm"
+                    />
+                  )}
+                  <input
+                    placeholder="Resolution note (optional)"
+                    value={resolveNote}
+                    onChange={(e) => setResolveNote(e.target.value)}
+                    className="tk-input w-full !py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    disabled={resolving}
+                    onClick={handleResolve}
+                    className="tk-btn-primary w-full !bg-sky-700 text-sm"
+                  >
+                    {resolving ? <Loader2 className="animate-spin" size={16} /> : "Resolve dispute"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

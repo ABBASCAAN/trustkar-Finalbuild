@@ -972,25 +972,46 @@ export async function sellerReviewReturn(transactionId, sellerId, { accept, note
     });
     await sendSystemMessage(transactionId, "Seller accepted the returned item. Refund will be processed by TrustKar.");
   } else {
+    // Auto-create dispute record when seller rejects return
+    const disputeRef = await addDoc(collection(db, COLLECTIONS.DISPUTES), {
+      transactionId,
+      buyerId: tx.buyerId,
+      sellerId: tx.sellerId,
+      raisedBy: sellerId,
+      reason: "Seller rejected return",
+      description: note || "Seller reviewed the returned item and rejected it.",
+      evidenceUrls: [],
+      status: "open",
+      outcome: null,
+      adminAssigned: false,
+      responseDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+      createdAt: serverTimestamp(),
+    });
+
     await updateTransactionStatus(transactionId, ESCROW_STATUS.DISPUTED, {
+      disputeId: disputeRef.id,
       sellerRejectedReturn: true,
       sellerReviewNote: note || "",
       sellerReviewedAt: serverTimestamp(),
     });
+
     await appendAuditLog({
-      entityType: "transaction",
-      entityId: transactionId,
-      action: "seller_rejected_return",
+      entityType: "dispute",
+      entityId: disputeRef.id,
+      action: "dispute_opened",
       actorId: sellerId,
       actorRole: "seller",
+      meta: { transactionId, source: "return_rejection" },
     });
+
     await createNotification({
       userId: tx.buyerId,
       type: NOTIFICATION_TYPES.DISPUTE_OPENED,
       title: "Seller rejected return — dispute opened",
       body: "TrustKar will review the case.",
-      link: `/deal/${transactionId}`,
+      link: `/disputes/${disputeRef.id}`,
     });
+
     await sendSystemMessage(transactionId, "Seller rejected the return. A dispute has been opened. TrustKar will review all evidence and resolve the case.");
   }
 }
