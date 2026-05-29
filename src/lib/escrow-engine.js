@@ -25,12 +25,26 @@ export function isKycComplete(profile) {
   return Boolean(profile.phoneVerified && profile.email);
 }
 
+export function isFullKycComplete(profile) {
+  if (!profile) return false;
+  return Boolean(
+    profile.phoneVerified &&
+    profile.emailVerified &&
+    profile.cnicVerified &&
+    profile.selfieVerified
+  );
+}
+
 export function getTxLimitForUser(profile) {
   const completed = profile?.completedDeals ?? 0;
   const trust = profile?.trustRating ?? 5;
   if (completed >= 5 || trust >= 4.5) return null;
   if (completed >= 1) return NEW_ACCOUNT_TX_LIMIT_PKR * 3;
   return NEW_ACCOUNT_TX_LIMIT_PKR;
+}
+
+export function requiresFullKyc(amountPkr) {
+  return Number(amountPkr) > NEW_ACCOUNT_TX_LIMIT_PKR;
 }
 
 const LOCKED_STATUSES = [

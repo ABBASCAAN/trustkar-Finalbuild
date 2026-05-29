@@ -122,6 +122,12 @@ export default function AdDetailContent() {
       showToast("Please verify your phone number to buy safely with escrow", "info");
       return;
     }
+    const { isFullKycComplete, requiresFullKyc } = await import("@/lib/escrow-engine");
+    if (requiresFullKyc(ad.price) && !isFullKycComplete(profile)) {
+      showToast("Complete identity verification (CNIC + selfie) for high-value deals", "info");
+      router.push(`/auth/kyc?redirect=/ad/${id}`);
+      return;
+    }
     setBuying(true);
     setError("");
     try {
