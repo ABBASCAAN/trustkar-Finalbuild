@@ -54,3 +54,46 @@ export function playNotificationSound() {
   }
 }
 
+/** High-frequency urgent beep for admin OTP alerts (3 rapid beeps ~1800Hz) */
+export function playOtpAlertSound() {
+  if (typeof window === "undefined") return;
+
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+
+    const beepCount = 3;
+    const beepDur = 0.12;
+    const gap = 0.08;
+
+    for (let i = 0; i < beepCount; i++) {
+      const t = now + i * (beepDur + gap);
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(1800, t);
+      osc.frequency.exponentialRampToValueAtTime(1600, t + beepDur);
+
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(0.3, t + 0.01);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + beepDur);
+
+      osc.connect(env);
+      env.connect(gain);
+      osc.start(t);
+      osc.stop(t + beepDur);
+    }
+
+    setTimeout(() => {
+      try { ctx.close(); } catch { /* ignore */ }
+    }, 1000);
+  } catch {
+    // Ignore autoplay restrictions.
+  }
+}
+

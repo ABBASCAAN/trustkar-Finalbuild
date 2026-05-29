@@ -3,33 +3,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { COLLECTIONS, BRAND_NAME } from "@/lib/constants";
+import { BRAND_NAME } from "@/lib/constants";
 import { useAuth } from "@/context/AuthContext";
-import { uploadImageToCloudinary } from "@/lib/cloudinary";
+import { generatePhoneOtp, verifyPhoneOtp } from "@/lib/firestore-helpers";
 import {
   Loader2,
   CheckCircle,
   Smartphone,
-  Mail,
-  CreditCard,
-  Camera,
   ShieldCheck,
   ArrowLeft,
-  Upload,
+  Send,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-
-function StepBadge({ done, label, icon: Icon }) {
-  return (
-    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-500"}`}>
-      {done ? <CheckCircle size={14} /> : <Icon size={14} />}
-      {label}
-    </div>
-  );
-}
 
 function KycForm() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -37,11 +23,9 @@ function KycForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
-  const [phoneOtp, setPhoneOtp] = useState("");
-  const [emailOtp, setEmailOtp] = useState("");
-  const [cnic, setCnic] = useState(profile?.cnic || "");
-  const [selfieFile, setSelfieFile] = useState(null);
-  const [selfiePreview, setSelfiePreview] = useState(profile?.selfieUrl || null);
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState("phone"); // "phone" | "otp" | "done"
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -51,77 +35,44 @@ function KycForm() {
   }, []);
 
   useEffect(() => {
-    if (profile) {
-      setCnic(profile.cnic || "");
-      setSelfiePreview(profile.selfieUrl || null);
-    }
+    if (profile?.phoneVerified) setStep("done");
   }, [profile]);
 
-  async function verifyPhone() {
-    if (phoneOtp.length !== 6) return showToast("Enter 6-digit OTP", "error");
+  async function handleSendOtp() {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length < 10) {
+      showToast("Enter a valid mobile number (10+ digits)", "error");
+      return;
+    }
     setBusy(true);
     try {
-      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), { phoneVerified: true });
+      await generatePhoneOtp(user.uid, cleaned);
+      showToast("OTP request sent — check your WhatsApp shortly", "success");
+      setStep("otp");
+    } catch (err) {
+      showToast(err.message || "Failed to send OTP request", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (otp.length !== 4) {
+      showToast("Enter 4-digit OTP", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      await verifyPhoneOtp(user.uid, otp);
       await refreshProfile();
       showToast("Phone verified successfully");
-      setPhoneOtp("");
-    } catch {
-      showToast("Verification failed", "error");
+      setStep("done");
+    } catch (err) {
+      showToast(err.message || "Verification failed", "error");
     } finally {
       setBusy(false);
     }
   }
-
-  async function verifyEmail() {
-    if (emailOtp.length !== 6) return showToast("Enter 6-digit OTP", "error");
-    setBusy(true);
-    try {
-      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), { emailVerified: true });
-      await refreshProfile();
-      showToast("Email verified successfully");
-      setEmailOtp("");
-    } catch {
-      showToast("Verification failed", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveCnic() {
-    if (!cnic.trim() || cnic.length < 13) return showToast("Enter valid CNIC (13 digits)", "error");
-    setBusy(true);
-    try {
-      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), { cnic: cnic.trim(), cnicVerified: true });
-      await refreshProfile();
-      showToast("CNIC saved & verified");
-    } catch {
-      showToast("Failed to save CNIC", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function uploadSelfie() {
-    if (!selfieFile) return showToast("Select a selfie first", "error");
-    setBusy(true);
-    try {
-      const up = await uploadImageToCloudinary(selfieFile, { folder: "trustkar/selfies" });
-      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), { selfieUrl: up.secureUrl, selfieVerified: true });
-      await refreshProfile();
-      setSelfiePreview(up.secureUrl);
-      showToast("Selfie uploaded & verified");
-    } catch {
-      showToast("Selfie upload failed", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const isPhoneDone = profile?.phoneVerified;
-  const isEmailDone = profile?.emailVerified;
-  const isCnicDone = profile?.cnicVerified;
-  const isSelfieDone = profile?.selfieVerified;
-  const allDone = isPhoneDone && isEmailDone && isCnicDone && isSelfieDone;
 
   if (authLoading) {
     return (
@@ -154,142 +105,113 @@ function KycForm() {
               <ArrowLeft size={18} />
             </button>
             <div>
-              <h1 className="text-lg font-black text-slate-900 sm:text-xl">{BRAND_NAME} Identity Verification</h1>
-              <p className="text-xs text-slate-500">Complete all steps to unlock escrow and high-value deals.</p>
+              <h1 className="text-lg font-black text-slate-900 sm:text-xl">{BRAND_NAME} Phone Verification</h1>
+              <p className="text-xs text-slate-500">Verify your mobile number to use escrow.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="tk-container max-w-xl py-6 sm:py-8">
-        <div className="mb-6 flex flex-wrap gap-2">
-          <StepBadge done={isPhoneDone} label="Phone" icon={Smartphone} />
-          <StepBadge done={isEmailDone} label="Email" icon={Mail} />
-          <StepBadge done={isCnicDone} label="CNIC" icon={CreditCard} />
-          <StepBadge done={isSelfieDone} label="Selfie" icon={Camera} />
+      <div className="tk-container max-w-md py-8 sm:py-12">
+        {/* Progress */}
+        <div className="mb-6 flex items-center justify-center gap-2">
+          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase ${step === "phone" || step === "otp" || step === "done" ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-400"}`}>
+            <Smartphone size={12} /> Enter number
+          </div>
+          <div className="h-px w-6 bg-slate-200" />
+          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase ${step === "otp" || step === "done" ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-400"}`}>
+            <Lock size={12} /> Enter OTP
+          </div>
+          <div className="h-px w-6 bg-slate-200" />
+          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase ${step === "done" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
+            <CheckCircle size={12} /> Verified
+          </div>
         </div>
 
-        {allDone && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <ShieldCheck size={24} className="text-emerald-600" />
-            <div>
-              <p className="text-sm font-bold text-emerald-900">Verification complete</p>
-              <p className="text-xs text-emerald-700">You can now use escrow for any deal value.</p>
+        {step === "phone" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100">
+                <Smartphone size={20} className="text-sky-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">Enter mobile number</p>
+                <p className="text-xs text-slate-500">WhatsApp must be active on this number.</p>
+              </div>
             </div>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))}
+              placeholder="03XXXXXXXXX"
+              className="tk-input w-full text-center text-lg tracking-widest"
+              type="tel"
+            />
+            <button
+              type="button"
+              disabled={busy || phone.replace(/\D/g, "").length < 10}
+              onClick={handleSendOtp}
+              className="tk-btn-primary mt-4 w-full"
+            >
+              {busy ? <Loader2 className="animate-spin" size={18} /> : (
+                <span className="flex items-center justify-center gap-2"><Send size={16} /> Send OTP</span>
+              )}
+            </button>
+            <p className="mt-3 text-center text-[10px] text-slate-400">
+              OTP will be sent to your WhatsApp by TrustKar admin within a few minutes.
+            </p>
           </div>
         )}
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Smartphone size={18} className="text-sky-600" />
-              <p className="text-sm font-bold text-slate-900">Phone verification</p>
-              {isPhoneDone && <CheckCircle size={16} className="ml-auto text-emerald-500" />}
-            </div>
-            {isPhoneDone ? (
-              <p className="mt-2 text-xs text-emerald-700">Phone verified.</p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                <p className="text-xs text-slate-500">Demo: enter any 6 digits.</p>
-                <input
-                  value={phoneOtp}
-                  onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  className="tk-input w-full tracking-widest"
-                />
-                <button type="button" disabled={busy} onClick={verifyPhone} className="tk-btn-primary w-full text-sm">
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : "Verify Phone"}
-                </button>
+        {step === "otp" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                <Lock size={20} className="text-amber-600" />
               </div>
-            )}
+              <div>
+                <p className="text-sm font-bold text-slate-900">Enter OTP</p>
+                <p className="text-xs text-slate-500">WhatsApp pe OTP check karein. Valid for 10 minutes.</p>
+              </div>
+            </div>
+            <input
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="0000"
+              className="tk-input w-full text-center text-2xl tracking-[0.5em]"
+              type="tel"
+            />
+            <button
+              type="button"
+              disabled={busy || otp.length !== 4}
+              onClick={handleVerifyOtp}
+              className="tk-btn-primary mt-4 w-full"
+            >
+              {busy ? <Loader2 className="animate-spin" size={18} /> : "Verify OTP"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setStep("phone"); setOtp(""); }}
+              className="mt-2 w-full text-center text-xs font-bold text-slate-500 hover:text-sky-600"
+            >
+              Change number / Resend
+            </button>
           </div>
+        )}
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Mail size={18} className="text-sky-600" />
-              <p className="text-sm font-bold text-slate-900">Email verification</p>
-              {isEmailDone && <CheckCircle size={16} className="ml-auto text-emerald-500" />}
-            </div>
-            {isEmailDone ? (
-              <p className="mt-2 text-xs text-emerald-700">Email verified.</p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                <p className="text-xs text-slate-500">Demo: enter any 6 digits.</p>
-                <input
-                  value={emailOtp}
-                  onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  className="tk-input w-full tracking-widest"
-                />
-                <button type="button" disabled={busy} onClick={verifyEmail} className="tk-btn-primary w-full text-sm">
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : "Verify Email"}
-                </button>
-              </div>
-            )}
+        {step === "done" && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
+            <ShieldCheck size={40} className="mx-auto text-emerald-600" />
+            <p className="mt-3 text-base font-bold text-emerald-900">Phone verified</p>
+            <p className="mt-1 text-sm text-emerald-700">You can now use escrow and post deals.</p>
+            <button
+              type="button"
+              onClick={() => router.push(redirectTo)}
+              className="tk-btn-primary mt-4"
+            >
+              Continue
+            </button>
           </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <CreditCard size={18} className="text-sky-600" />
-              <p className="text-sm font-bold text-slate-900">CNIC verification</p>
-              {isCnicDone && <CheckCircle size={16} className="ml-auto text-emerald-500" />}
-            </div>
-            {isCnicDone ? (
-              <p className="mt-2 text-xs text-emerald-700">CNIC verified: {profile?.cnic}</p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                <input
-                  value={cnic}
-                  onChange={(e) => setCnic(e.target.value.replace(/\D/g, "").slice(0, 13))}
-                  placeholder="13-digit CNIC without dashes"
-                  className="tk-input w-full"
-                />
-                <button type="button" disabled={busy} onClick={saveCnic} className="tk-btn-primary w-full text-sm">
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : "Save & Verify CNIC"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Camera size={18} className="text-sky-600" />
-              <p className="text-sm font-bold text-slate-900">Selfie verification</p>
-              {isSelfieDone && <CheckCircle size={16} className="ml-auto text-emerald-500" />}
-            </div>
-            {isSelfieDone && selfiePreview ? (
-              <div className="mt-3">
-                <div className="relative h-32 w-32 overflow-hidden rounded-xl">
-                  <Image src={selfiePreview} alt="Selfie" fill className="object-cover" unoptimized />
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3 space-y-3">
-                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
-                  <Upload size={16} /> Upload selfie (clear face photo)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      setSelfieFile(file || null);
-                      if (file) setSelfiePreview(URL.createObjectURL(file));
-                    }}
-                  />
-                </label>
-                {selfiePreview && (
-                  <div className="relative h-32 w-32 overflow-hidden rounded-xl">
-                    <Image src={selfiePreview} alt="Preview" fill className="object-cover" unoptimized />
-                  </div>
-                )}
-                <button type="button" disabled={busy || !selfieFile} onClick={uploadSelfie} className="tk-btn-primary w-full text-sm">
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : "Upload Selfie"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {toast && (

@@ -22,17 +22,12 @@ export function calculateEscrowFees(amount, settings = {}) {
 
 export function isKycComplete(profile) {
   if (!profile) return false;
-  return Boolean(profile.phoneVerified && profile.email);
+  return Boolean(profile.phoneVerified);
 }
 
 export function isFullKycComplete(profile) {
   if (!profile) return false;
-  return Boolean(
-    profile.phoneVerified &&
-    profile.emailVerified &&
-    profile.cnicVerified &&
-    profile.selfieVerified
-  );
+  return Boolean(profile.phoneVerified);
 }
 
 export function getTxLimitForUser(profile) {

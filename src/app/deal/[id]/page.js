@@ -56,8 +56,6 @@ import {
   ZoomIn,
   Sparkles,
   Smartphone,
-  Mail,
-  Camera,
   Gavel,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
@@ -1248,22 +1246,7 @@ export default function DealRoomPage() {
                     <div className="mt-1 flex flex-wrap gap-1">
                       {profileModalData.phoneVerified && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700 border border-sky-100">
-                          <Smartphone size={10} /> Phone
-                        </span>
-                      )}
-                      {profileModalData.emailVerified && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700 border border-sky-100">
-                          <Mail size={10} /> Email
-                        </span>
-                      )}
-                      {profileModalData.cnicVerified && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100">
-                          <Shield size={10} /> CNIC
-                        </span>
-                      )}
-                      {profileModalData.selfieVerified && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100">
-                          <Camera size={10} /> Selfie
+                          <Smartphone size={10} /> Phone verified
                         </span>
                       )}
                     </div>

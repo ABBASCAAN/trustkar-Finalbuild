@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,6 +36,8 @@ import {
   fetchAdByListingId,
   getHomepageSettings,
   saveHomepageSettings,
+  fetchPendingOtpVerifications,
+  markAllNotificationsRead,
 } from "@/lib/firestore-helpers";
 import { ESCROW_STATUS, BANNER_SLOTS, DISPUTE_OUTCOMES } from "@/lib/constants";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
@@ -58,8 +60,12 @@ import {
   Truck,
   RotateCcw,
   Banknote,
+  Smartphone,
+  MessageCircle,
+  Copy,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import { playOtpAlertSound } from "@/lib/sound";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminAdsManager from "./AdminAdsManager";
 import AdminUserManager from "./AdminUserManager";
@@ -72,6 +78,7 @@ const TABS = [
   { id: "returns", label: "Returns", icon: RotateCcw },
   { id: "refunds", label: "Refunds", icon: Banknote },
   { id: "disputes", label: "Disputes", icon: Shield },
+  { id: "otp", label: "OTP Verify", icon: Smartphone },
   { id: "approvals", label: "Ad approvals", icon: ClipboardCheck },
   { id: "sponsored", label: "Paid ads", icon: Megaphone },
   { id: "transactions", label: "Deals", icon: CreditCard },
@@ -182,7 +189,9 @@ export default function AdminDashboard() {
   const [pendingReturnReviews, setPendingReturnReviews] = useState([]);
   const [returnsInTransit, setReturnsInTransit] = useState([]);
   const [rejectedAwaitingReturn, setRejectedAwaitingReturn] = useState([]);
+  const [pendingOtps, setPendingOtps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const prevOtpCountRef = useRef(0);
   const [txSearch, setTxSearch] = useState("");
   const [txUnlocked, setTxUnlocked] = useState(false);
   const [paymentForm, setPaymentForm] = useState(null);
@@ -221,10 +230,19 @@ export default function AdminDashboard() {
     loadAll();
   }, [user, isAdmin, authLoading]);
 
+  // Play alert sound when new OTP verifications arrive
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (pendingOtps.length > 0 && pendingOtps.length > prevOtpCountRef.current) {
+      playOtpAlertSound();
+    }
+    prevOtpCountRef.current = pendingOtps.length;
+  }, [pendingOtps.length, isAdmin]);
+
   async function loadAll() {
     setLoading(true);
     try {
-      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar] = await Promise.all([
+      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar, potp] = await Promise.all([
         fetchAllAds(),
         fetchAllTransactions(),
         fetchAllUsers(),
@@ -239,6 +257,7 @@ export default function AdminDashboard() {
         fetchPendingReturnReviews().catch(() => []),
         fetchReturnsInTransit().catch(() => []),
         fetchRejectedAwaitingReturn().catch(() => []),
+        fetchPendingOtpVerifications().catch(() => []),
       ]);
       setAds(a);
       setTransactions(t);
@@ -251,6 +270,7 @@ export default function AdminDashboard() {
       setPendingReturnReviews(prr);
       setReturnsInTransit(rit);
       setRejectedAwaitingReturn(rar);
+      setPendingOtps(potp);
       setHomepageSettings(hp);
       setPaymentForm(pset);
       setBanners(bn);
@@ -417,6 +437,9 @@ export default function AdminDashboard() {
               )}
               {id === "disputes" && openDisputes.length > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{openDisputes.length}</span>
+              )}
+              {id === "otp" && pendingOtps.length > 0 && (
+                <span className="rounded-full bg-sky-500 px-1.5 text-[10px] text-white">{pendingOtps.length}</span>
               )}
               {id === "approvals" && pendingApprovals.length > 0 && (
                 <span className="rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{pendingApprovals.length}</span>
@@ -594,6 +617,84 @@ export default function AdminDashboard() {
                 showToast={showToast}
               />
             ))}
+          </div>
+        )}
+
+        {tab === "otp" && (
+          <div className="space-y-4">
+            <h3 className="mb-3 text-sm font-bold text-slate-700">Pending phone OTP verifications</h3>
+            {pendingOtps.length === 0 ? (
+              <p className="text-slate-500">No pending OTP verifications.</p>
+            ) : (
+              pendingOtps.map((otpItem) => {
+                const phone = otpItem.meta?.phone || "";
+                const otpCode = otpItem.meta?.otp || "";
+                const userId = otpItem.meta?.userId || "";
+                const ts = otpItem.createdAt;
+                const timeStr = ts?.toDate
+                  ? ts.toDate().toLocaleString("en-PK")
+                  : new Date(ts).toLocaleString("en-PK");
+                const waLink = phone ? `https://wa.me/${phone.replace(/\D/g, "")}?text=Your+TrustKar+verification+OTP+is:+${otpCode}` : "";
+                return (
+                  <div key={otpItem.id} className="tk-card space-y-3 !p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{phone}</p>
+                        <p className="text-xs text-slate-500">Requested: {timeStr}</p>
+                      </div>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Pending</span>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold uppercase text-slate-400">OTP Code</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <p className="text-2xl font-black tracking-widest text-sky-700">{otpCode}</p>
+                        <button
+                          type="button"
+                          onClick={() => { navigator.clipboard.writeText(otpCode); showToast("OTP copied", "success"); }}
+                          className="flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-600 shadow-sm border border-slate-200 hover:text-sky-600"
+                        >
+                          <Copy size={12} /> Copy
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-500">Valid for 10 minutes from request time.</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {waLink && (
+                        <a
+                          href={waLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                        >
+                          <Smartphone size={14} /> Open WhatsApp
+                        </a>
+                      )}
+                      {userId && (
+                        <Link
+                          href={`/chat/${userId}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700"
+                        >
+                          <MessageCircle size={14} /> Open chat
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await markAllNotificationsRead(userId);
+                          showToast("Marked as sent", "success");
+                          await loadAll();
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300"
+                      >
+                        <CheckCircle size={14} /> Mark sent
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
 

@@ -1268,6 +1268,62 @@ export async function markAllNotificationsRead(userId) {
   await batch.commit();
 }
 
+/** Phone OTP verification (admin sends OTP via WhatsApp manually) */
+export async function generatePhoneOtp(userId, phoneNumber) {
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  const expiresAt = Timestamp.fromDate(new Date(Date.now() + 10 * 60 * 1000));
+  const userRef = doc(db, COLLECTIONS.USERS, userId);
+  await updateDoc(userRef, {
+    phone: phoneNumber,
+    phoneOtp: otp,
+    phoneOtpExpiresAt: expiresAt,
+    phoneVerified: false,
+    otpRequestedAt: serverTimestamp(),
+  });
+  await createNotification({
+    userId: "admin",
+    type: NOTIFICATION_TYPES.PHONE_OTP_PENDING,
+    title: "Phone OTP pending",
+    body: `User ${phoneNumber} requested OTP: ${otp}`,
+    link: "/admin",
+    meta: { userId, phone: phoneNumber, otp },
+  });
+  return otp;
+}
+
+export async function verifyPhoneOtp(userId, otp) {
+  const snap = await getDoc(doc(db, COLLECTIONS.USERS, userId));
+  if (!snap.exists()) throw new Error("User not found");
+  const data = snap.data();
+  if (!data.phoneOtp || data.phoneOtp !== otp) throw new Error("Invalid OTP");
+  const now = Timestamp.now();
+  const expires = data.phoneOtpExpiresAt;
+  if (expires && expires.seconds < now.seconds) throw new Error("OTP expired");
+  await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+    phoneVerified: true,
+    phoneOtp: null,
+    phoneOtpExpiresAt: null,
+    verifiedAt: serverTimestamp(),
+  });
+}
+
+export async function fetchPendingOtpVerifications() {
+  const q = query(
+    collection(db, COLLECTIONS.NOTIFICATIONS),
+    where("type", "==", NOTIFICATION_TYPES.PHONE_OTP_PENDING),
+    where("read", "==", false),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const byUser = {};
+  for (const item of items) {
+    const uid = item.meta?.userId;
+    if (uid && !byUser[uid]) byUser[uid] = item;
+  }
+  return Object.values(byUser);
+}
+
 /** Profile / Settings */
 export async function updateUserProfile(userId, data) {
   await updateDoc(doc(db, COLLECTIONS.USERS, userId), {

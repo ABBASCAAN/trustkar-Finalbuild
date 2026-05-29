@@ -118,13 +118,9 @@ export default function AdDetailContent() {
       setError("You cannot buy your own listing.");
       return;
     }
-    if (!profile?.phoneVerified) {
+    const { isKycComplete } = await import("@/lib/escrow-engine");
+    if (!isKycComplete(profile)) {
       showToast("Please verify your phone number to buy safely with escrow", "info");
-      return;
-    }
-    const { isFullKycComplete, requiresFullKyc } = await import("@/lib/escrow-engine");
-    if (requiresFullKyc(ad.price) && !isFullKycComplete(profile)) {
-      showToast("Complete identity verification (CNIC + selfie) for high-value deals", "info");
       router.push(`/auth/kyc?redirect=/ad/${id}`);
       return;
     }

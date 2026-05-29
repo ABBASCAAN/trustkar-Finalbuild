@@ -145,4 +145,5 @@ export const NOTIFICATION_TYPES = {
   DEAL_AUTO_COMPLETED: "deal_auto_completed",
   DEAL_CANCELLED: "deal_cancelled",
   DISPUTE_OPENED: "dispute_opened",
+  PHONE_OTP_PENDING: "phone_otp_pending",
 };
