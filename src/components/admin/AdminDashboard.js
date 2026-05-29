@@ -18,7 +18,11 @@ import {
   adminVerifyShipment,
   adminReleaseToSeller,
   adminResolveDispute,
+  adminRefundBuyer,
   fetchOpenDisputes,
+  fetchPendingReturnReviews,
+  fetchReturnsInTransit,
+  fetchRejectedAwaitingReturn,
   approveAd,
   rejectAd,
   getPaymentSettings,
@@ -52,6 +56,8 @@ import {
   Megaphone,
   ExternalLink,
   Truck,
+  RotateCcw,
+  Banknote,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import AdminAnalytics from "./AdminAnalytics";
@@ -63,6 +69,8 @@ const TABS = [
   { id: "verify", label: "Pending verification", icon: ClipboardCheck },
   { id: "shipment", label: "Verify shipments", icon: Truck },
   { id: "release", label: "Release payments", icon: CreditCard },
+  { id: "returns", label: "Returns", icon: RotateCcw },
+  { id: "refunds", label: "Refunds", icon: Banknote },
   { id: "disputes", label: "Disputes", icon: Shield },
   { id: "approvals", label: "Ad approvals", icon: ClipboardCheck },
   { id: "sponsored", label: "Paid ads", icon: Megaphone },
@@ -171,6 +179,9 @@ export default function AdminDashboard() {
   const [pendingRelease, setPendingRelease] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [openDisputes, setOpenDisputes] = useState([]);
+  const [pendingReturnReviews, setPendingReturnReviews] = useState([]);
+  const [returnsInTransit, setReturnsInTransit] = useState([]);
+  const [rejectedAwaitingReturn, setRejectedAwaitingReturn] = useState([]);
   const [loading, setLoading] = useState(true);
   const [txSearch, setTxSearch] = useState("");
   const [txUnlocked, setTxUnlocked] = useState(false);
@@ -213,7 +224,7 @@ export default function AdminDashboard() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp] = await Promise.all([
+      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar] = await Promise.all([
         fetchAllAds(),
         fetchAllTransactions(),
         fetchAllUsers(),
@@ -225,6 +236,9 @@ export default function AdminDashboard() {
         fetchAllSponsoredBanners(),
         fetchOpenDisputes().catch(() => []),
         getHomepageSettings(),
+        fetchPendingReturnReviews().catch(() => []),
+        fetchReturnsInTransit().catch(() => []),
+        fetchRejectedAwaitingReturn().catch(() => []),
       ]);
       setAds(a);
       setTransactions(t);
@@ -234,6 +248,9 @@ export default function AdminDashboard() {
       setPendingRelease(pr);
       setPendingApprovals(pa);
       setOpenDisputes(od);
+      setPendingReturnReviews(prr);
+      setReturnsInTransit(rit);
+      setRejectedAwaitingReturn(rar);
       setHomepageSettings(hp);
       setPaymentForm(pset);
       setBanners(bn);
@@ -392,6 +409,12 @@ export default function AdminDashboard() {
               {id === "release" && pendingRelease.length > 0 && (
                 <span className="rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{pendingRelease.length}</span>
               )}
+              {id === "returns" && (returnsInTransit.length + rejectedAwaitingReturn.length) > 0 && (
+                <span className="rounded-full bg-orange-500 px-1.5 text-[10px] text-white">{returnsInTransit.length + rejectedAwaitingReturn.length}</span>
+              )}
+              {id === "refunds" && pendingReturnReviews.length > 0 && (
+                <span className="rounded-full bg-emerald-500 px-1.5 text-[10px] text-white">{pendingReturnReviews.length}</span>
+              )}
               {id === "disputes" && openDisputes.length > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{openDisputes.length}</span>
               )}
@@ -472,6 +495,85 @@ export default function AdminDashboard() {
                     <Link href={`/deal/${t.id}`} className="text-xs text-cyan-600 hover:underline flex items-center gap-1">
                       <ExternalLink size={12} /> Deal room
                     </Link>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "returns" && (
+          <div className="space-y-6">
+            {/* Rejected awaiting return */}
+            <div>
+              <h3 className="mb-3 text-sm font-bold text-slate-700">Rejected — awaiting buyer return shipment</h3>
+              {rejectedAwaitingReturn.length === 0 ? (
+                <p className="text-sm text-slate-500">No rejected items awaiting return.</p>
+              ) : (
+                rejectedAwaitingReturn.map((t) => (
+                  <div key={t.id} className="tk-card mb-3 flex flex-wrap items-center justify-between gap-3 !p-4">
+                    <div>
+                      <p className="font-bold">{t.adTitle}</p>
+                      <p className="font-mono text-xs text-cyan-700">{t.escrowId}</p>
+                      <p className="text-sm">{formatPrice(t.amount)}</p>
+                      <p className="text-xs text-red-600">Reason: {t.rejectionReason || "N/A"}</p>
+                    </div>
+                    <Link href={`/deal/${t.id}`} className="text-xs text-sky-700 underline">Open deal room →</Link>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Returns in transit */}
+            <div>
+              <h3 className="mb-3 text-sm font-bold text-slate-700">Return shipments in transit</h3>
+              {returnsInTransit.length === 0 ? (
+                <p className="text-sm text-slate-500">No return shipments in transit.</p>
+              ) : (
+                returnsInTransit.map((t) => (
+                  <div key={t.id} className="tk-card mb-3 flex flex-wrap items-center justify-between gap-3 !p-4">
+                    <div>
+                      <p className="font-bold">{t.adTitle}</p>
+                      <p className="font-mono text-xs text-cyan-700">{t.escrowId}</p>
+                      <p className="text-sm">{formatPrice(t.amount)}</p>
+                      <p className="text-xs text-slate-600">Return tracking: {t.returnTrackingId} · {t.returnCourierName}</p>
+                    </div>
+                    <Link href={`/deal/${t.id}`} className="text-xs text-sky-700 underline">Open deal room →</Link>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === "refunds" && (
+          <div className="space-y-4">
+            <h3 className="mb-3 text-sm font-bold text-slate-700">Refunds pending — seller accepted return</h3>
+            {pendingReturnReviews.length === 0 ? (
+              <p className="text-slate-500">No refunds pending.</p>
+            ) : (
+              pendingReturnReviews.map((t) => (
+                <div key={t.id} className="tk-card flex flex-wrap items-center justify-between gap-3 !p-4">
+                  <div>
+                    <p className="font-bold">{t.adTitle}</p>
+                    <p className="font-mono text-xs text-cyan-700">{t.escrowId}</p>
+                    <p className="text-sm">{formatPrice(t.amount)}</p>
+                    <p className="text-xs text-emerald-700">Seller accepted return</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await adminRefundBuyer(t.id, user.uid);
+                        await logAdminAction(user.uid, "refund_buyer", { txId: t.id, escrowId: t.escrowId });
+                        showToast("Refund processed", "success");
+                        await loadAll();
+                      }}
+                      className="tk-btn-primary !bg-red-600 !py-2 text-xs"
+                    >
+                      <Banknote size={14} /> Process refund
+                    </button>
+                    <Link href={`/deal/${t.id}`} className="text-xs text-sky-700 underline self-center">Deal room</Link>
                   </div>
                 </div>
               ))

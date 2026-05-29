@@ -18,6 +18,10 @@ export const ESCROW_STATUS = {
   INSPECTION: "inspection",
   PENDING_RELEASE: "pending_release",
   RELEASED: "released",
+  REJECTED: "rejected",
+  RETURN_IN_TRANSIT: "return_in_transit",
+  SELLER_REVIEW: "seller_review",
+  REFUNDED: "refunded",
   DISPUTED: "disputed",
   CANCELLED: "cancelled",
 };
@@ -31,6 +35,10 @@ export const ESCROW_STATUS_LABELS = {
   [ESCROW_STATUS.INSPECTION]: "Inspection window",
   [ESCROW_STATUS.PENDING_RELEASE]: "Pending release to seller",
   [ESCROW_STATUS.RELEASED]: "Payment released to seller",
+  [ESCROW_STATUS.REJECTED]: "Item rejected by buyer",
+  [ESCROW_STATUS.RETURN_IN_TRANSIT]: "Return shipment in transit",
+  [ESCROW_STATUS.SELLER_REVIEW]: "Seller reviewing return",
+  [ESCROW_STATUS.REFUNDED]: "Refunded to buyer",
   [ESCROW_STATUS.DISPUTED]: "Disputed",
   [ESCROW_STATUS.CANCELLED]: "Cancelled",
 };

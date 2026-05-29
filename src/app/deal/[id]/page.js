@@ -19,6 +19,11 @@ import {
   sellerSubmitShipment,
   adminVerifyShipment,
   buyerConfirmReceipt,
+  buyerRejectItem,
+  buyerSubmitReturnShipment,
+  sellerReviewReturn,
+  adminRefundBuyer,
+  subscribeTransaction,
   createNotification,
   createFeaturedAdReview,
 } from "@/lib/firestore-helpers";
@@ -102,6 +107,15 @@ export default function DealRoomPage() {
   const [zoomImageUrl, setZoomImageUrl] = useState(null);
   const [zoomedIn, setZoomedIn] = useState(false);
 
+  /* Rejection / Return flow state */
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectEvidenceFiles, setRejectEvidenceFiles] = useState([]);
+  const [rejecting, setRejecting] = useState(false);
+  const [returnTrackingId, setReturnTrackingId] = useState("");
+  const [returnCourierName, setReturnCourierName] = useState("");
+  const [returnShipmentFile, setReturnShipmentFile] = useState(null);
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+
   const isBuyer = tx?.buyerId === user?.uid;
   const isSeller = tx?.sellerId === user?.uid;
 
@@ -118,6 +132,14 @@ export default function DealRoomPage() {
     const unsub = subscribeDealMessages(id, setMessages);
     return () => unsub();
   }, [id, user]);
+
+  useEffect(() => {
+    if (!id) return;
+    const unsub = subscribeTransaction(id, (data) => {
+      if (data) setTx(data);
+    });
+    return () => unsub();
+  }, [id]);
 
   // Live “new chat message” sound + toast.
   useEffect(() => {
@@ -327,6 +349,85 @@ export default function DealRoomPage() {
     }
   }
 
+  async function handleRejectItem() {
+    if (!rejectReason.trim()) {
+      showToast("Please provide a reason for rejection", "error");
+      return;
+    }
+    if (!confirm("Are you sure you want to reject this item? This will start the return process.")) return;
+    setRejecting(true);
+    try {
+      const evidenceUrls = [];
+      for (const file of rejectEvidenceFiles) {
+        const up = await uploadImageToCloudinary(file, { folder: "trustkar/reject-evidence" });
+        evidenceUrls.push(up.secureUrl);
+      }
+      await buyerRejectItem(id, user.uid, {
+        reason: rejectReason.trim(),
+        evidenceUrls,
+      });
+      showToast("Item rejected — return process started", "success");
+      setRejectReason("");
+      setRejectEvidenceFiles([]);
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not reject item", "error");
+    } finally {
+      setRejecting(false);
+    }
+  }
+
+  async function handleSubmitReturnShipment() {
+    if (!returnTrackingId.trim()) {
+      showToast("Return tracking ID is required", "error");
+      return;
+    }
+    setReturnSubmitting(true);
+    try {
+      let proofUrl = null;
+      if (returnShipmentFile) {
+        const up = await uploadImageToCloudinary(returnShipmentFile, { folder: "trustkar/return-shipment" });
+        proofUrl = up.secureUrl;
+      }
+      await buyerSubmitReturnShipment(id, user.uid, {
+        trackingId: returnTrackingId,
+        courierName: returnCourierName,
+        proofUrl,
+      });
+      showToast("Return shipment submitted", "success");
+      setReturnTrackingId("");
+      setReturnCourierName("");
+      setReturnShipmentFile(null);
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not submit return shipment", "error");
+    } finally {
+      setReturnSubmitting(false);
+    }
+  }
+
+  async function handleSellerReviewReturn(accept) {
+    if (!confirm(accept ? "Confirm you received the item in acceptable condition?" : "You are rejecting the return. This will open a dispute.")) return;
+    try {
+      await sellerReviewReturn(id, user.uid, { accept, note: "" });
+      showToast(accept ? "Return accepted — refund pending" : "Return rejected — dispute opened", "success");
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not process return review", "error");
+    }
+  }
+
+  async function handleAdminRefund() {
+    if (!confirm("Process full refund to buyer?")) return;
+    try {
+      await adminRefundBuyer(id, user.uid);
+      showToast("Refund processed", "success");
+      await load();
+    } catch (e) {
+      showToast(e.message || "Could not process refund", "error");
+    }
+  }
+
   function renderPaymentDetails() {
     if (!paymentSettings) return null;
     const m = paymentSettings[paymentMethod];
@@ -384,6 +485,20 @@ export default function DealRoomPage() {
           : "You verified receipt. Admin will pay the seller.";
       case ESCROW_STATUS.RELEASED:
         return "Deal completed. Payment released to seller.";
+      case ESCROW_STATUS.REJECTED:
+        return isBuyerRole
+          ? `You rejected the item. Ship it back within the deadline.`
+          : "Buyer rejected the item. Waiting for return shipment.";
+      case ESCROW_STATUS.RETURN_IN_TRANSIT:
+        return isBuyerRole
+          ? "Return shipment submitted. Seller will review when it arrives."
+          : "Buyer shipped the item back. Review it when it arrives.";
+      case ESCROW_STATUS.SELLER_REVIEW:
+        return isBuyerRole
+          ? "Seller accepted the return. Refund will be processed shortly."
+          : "You accepted the return. TrustKar will process the refund.";
+      case ESCROW_STATUS.REFUNDED:
+        return "Deal closed. Buyer has been refunded.";
       default:
         return ESCROW_STATUS_LABELS[tx?.status] || tx?.status;
     }
@@ -431,9 +546,13 @@ export default function DealRoomPage() {
     isSeller && tx.status === ESCROW_STATUS.FUNDS_HELD && tx.status !== ESCROW_STATUS.DISPUTED;
   const canConfirmReceipt = isBuyer && tx.status === ESCROW_STATUS.DISPATCHED;
   const canAccept = isBuyer && tx.status === ESCROW_STATUS.INSPECTION;
+  const canReject = isBuyer && [ESCROW_STATUS.INSPECTION, ESCROW_STATUS.DISPATCHED, ESCROW_STATUS.PENDING_RELEASE].includes(tx.status);
+  const canSubmitReturn = isBuyer && tx.status === ESCROW_STATUS.REJECTED;
+  const canReviewReturn = isSeller && tx.status === ESCROW_STATUS.RETURN_IN_TRANSIT;
+  const canAdminRefund = isAdmin && tx.status === ESCROW_STATUS.SELLER_REVIEW;
   const canDispute = (isBuyer || isSeller) && tx.status === ESCROW_STATUS.INSPECTION;
   const canAdminVerifyShipment = isAdmin && tx.status === ESCROW_STATUS.PENDING_SHIPMENT_VERIFY;
-  const isDealClosed = [ESCROW_STATUS.RELEASED, ESCROW_STATUS.CANCELLED].includes(tx.status);
+  const isDealClosed = [ESCROW_STATUS.RELEASED, ESCROW_STATUS.CANCELLED, ESCROW_STATUS.REFUNDED].includes(tx.status);
   const canChat = !isDealClosed && !tx.chatArchived;
 
   return (
@@ -682,6 +801,97 @@ export default function DealRoomPage() {
                   >
                     <AlertTriangle size={16} /> Report issue / Dispute
                   </Link>
+                )}
+
+                {/* Buyer reject item */}
+                {canReject && (
+                  <div className="rounded-xl border border-red-100 bg-white p-3 shadow-sm space-y-3 sm:p-4 sm:col-span-2">
+                    <p className="text-sm font-bold flex items-center gap-2 text-red-700">
+                      <AlertTriangle size={14} /> Reject item — start return
+                    </p>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Reason: Wrong item, damaged, not as described, etc."
+                      className="tk-input h-20 w-full resize-none text-sm"
+                    />
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
+                      <Upload size={14} /> Add photos / videos as evidence
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => setRejectEvidenceFiles(Array.from(e.target.files || []))}
+                      />
+                    </label>
+                    {rejectEvidenceFiles.length > 0 && (
+                      <p className="text-xs text-slate-500">{rejectEvidenceFiles.length} file(s) selected</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleRejectItem}
+                      disabled={rejecting}
+                      className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {rejecting ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Reject item & start return"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Buyer submit return shipment */}
+                {canSubmitReturn && (
+                  <div className="rounded-xl bg-white p-3 shadow-sm border border-slate-100 space-y-3 sm:p-4 sm:col-span-2">
+                    <p className="text-sm font-bold flex items-center gap-2"><Truck size={14} className="text-sky-600"/> Ship item back</p>
+                    <input value={returnCourierName} onChange={(e) => setReturnCourierName(e.target.value)} placeholder="Courier (TCS, Leopards…)" className="tk-input !py-2 text-sm w-full" />
+                    <input value={returnTrackingId} onChange={(e) => setReturnTrackingId(e.target.value)} placeholder="Return Tracking ID *" className="tk-input !py-2 text-sm w-full" />
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
+                      <Upload size={14} /> Proof photo (optional)
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => setReturnShipmentFile(e.target.files?.[0])} />
+                    </label>
+                    <button type="button" onClick={handleSubmitReturnShipment} disabled={returnSubmitting} className="tk-btn-primary w-full">
+                      {returnSubmitting ? <Loader2 className="animate-spin" size={18} /> : "Submit return shipment"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Seller review returned item */}
+                {canReviewReturn && (
+                  <div className="rounded-xl border border-amber-100 bg-white p-3 shadow-sm space-y-3 sm:p-4 sm:col-span-2">
+                    <p className="text-sm font-bold flex items-center gap-2 text-amber-700">
+                      <Package size={14} /> Review returned item
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Tracking: {tx.returnTrackingId || "N/A"} · Courier: {tx.returnCourierName || "N/A"}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSellerReviewReturn(true)}
+                        className="tk-btn-primary flex-1 !bg-emerald-600"
+                      >
+                        <CheckCircle size={16} /> Accept return
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSellerReviewReturn(false)}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-50 py-2.5 text-sm font-bold text-red-700 border border-red-200 hover:bg-red-100"
+                      >
+                        <AlertTriangle size={16} /> Reject return
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Admin refund button */}
+                {canAdminRefund && (
+                  <button
+                    type="button"
+                    onClick={handleAdminRefund}
+                    className="tk-btn-primary w-full !bg-red-600 sm:col-span-2"
+                  >
+                    <Shield size={18} /> Process refund to buyer
+                  </button>
                 )}
               </div>
 

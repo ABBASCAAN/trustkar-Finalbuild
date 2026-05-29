@@ -875,6 +875,250 @@ export async function fetchOpenDisputes() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Buyer rejects item during inspection — triggers return flow */
+export async function buyerRejectItem(transactionId, buyerId, { reason, evidenceUrls = [] }) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Deal not found");
+  if (tx.buyerId !== buyerId) throw new Error("Only buyer can reject.");
+  const allowed = [ESCROW_STATUS.INSPECTION, ESCROW_STATUS.DISPATCHED, ESCROW_STATUS.PENDING_RELEASE];
+  if (!allowed.includes(tx.status)) throw new Error("Cannot reject at this stage.");
+
+  await updateTransactionStatus(transactionId, ESCROW_STATUS.REJECTED, {
+    rejectedAt: serverTimestamp(),
+    rejectionReason: reason || "",
+    rejectionEvidenceUrls: evidenceUrls || [],
+    returnDeadline: Timestamp.fromDate(addHours(new Date(), DISPATCH_DEADLINE_HOURS)),
+  });
+
+  await appendAuditLog({
+    entityType: "transaction",
+    entityId: transactionId,
+    action: "buyer_rejected",
+    actorId: buyerId,
+    actorRole: "buyer",
+    meta: { reason },
+  });
+
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+    title: "Buyer rejected the item",
+    body: `Reason: ${reason || "Not specified"}. Return process started.`,
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, `Buyer rejected the item. Reason: ${reason || "Not specified"}. Buyer must ship the item back within ${DISPATCH_DEADLINE_HOURS} hours.`);
+}
+
+/** Buyer submits return shipment proof */
+export async function buyerSubmitReturnShipment(transactionId, buyerId, { trackingId, courierName, proofUrl }) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Deal not found");
+  if (tx.buyerId !== buyerId) throw new Error("Only buyer can submit return shipment.");
+  if (tx.status !== ESCROW_STATUS.REJECTED) throw new Error("Return shipment can only be submitted after rejection.");
+
+  await updateTransactionStatus(transactionId, ESCROW_STATUS.RETURN_IN_TRANSIT, {
+    returnTrackingId: trackingId?.trim() || "",
+    returnCourierName: (courierName || "").trim(),
+    returnShipmentProofUrl: proofUrl || null,
+    returnShippedAt: serverTimestamp(),
+    returnReviewDueAt: Timestamp.fromDate(addHours(new Date(), INSPECTION_PERIOD_HOURS)),
+  });
+
+  await appendAuditLog({
+    entityType: "transaction",
+    entityId: transactionId,
+    action: "return_shipped",
+    actorId: buyerId,
+    actorRole: "buyer",
+    meta: { trackingId },
+  });
+
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.SHIPMENT_POSTED,
+    title: "Return shipment submitted",
+    body: `Tracking: ${trackingId}. Review the returned item when it arrives.`,
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, `Buyer submitted return shipment. Tracking: ${trackingId}. Seller has ${INSPECTION_PERIOD_HOURS} hours to review the returned item.`);
+}
+
+/** Seller reviews returned item */
+export async function sellerReviewReturn(transactionId, sellerId, { accept, note }) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Deal not found");
+  if (tx.sellerId !== sellerId) throw new Error("Only seller can review return.");
+  if (tx.status !== ESCROW_STATUS.RETURN_IN_TRANSIT) throw new Error("Item is not in return transit.");
+
+  if (accept) {
+    await updateTransactionStatus(transactionId, ESCROW_STATUS.SELLER_REVIEW, {
+      sellerAcceptedReturn: true,
+      sellerReviewNote: note || "",
+      sellerReviewedAt: serverTimestamp(),
+    });
+    await appendAuditLog({
+      entityType: "transaction",
+      entityId: transactionId,
+      action: "seller_accepted_return",
+      actorId: sellerId,
+      actorRole: "seller",
+    });
+    await createNotification({
+      userId: tx.buyerId,
+      type: NOTIFICATION_TYPES.ITEM_RECEIVED,
+      title: "Seller accepted return",
+      body: "Your refund will be processed shortly.",
+      link: `/deal/${transactionId}`,
+    });
+    await sendSystemMessage(transactionId, "Seller accepted the returned item. Refund will be processed by TrustKar.");
+  } else {
+    await updateTransactionStatus(transactionId, ESCROW_STATUS.DISPUTED, {
+      sellerRejectedReturn: true,
+      sellerReviewNote: note || "",
+      sellerReviewedAt: serverTimestamp(),
+    });
+    await appendAuditLog({
+      entityType: "transaction",
+      entityId: transactionId,
+      action: "seller_rejected_return",
+      actorId: sellerId,
+      actorRole: "seller",
+    });
+    await createNotification({
+      userId: tx.buyerId,
+      type: NOTIFICATION_TYPES.DISPUTE_OPENED,
+      title: "Seller rejected return — dispute opened",
+      body: "TrustKar will review the case.",
+      link: `/deal/${transactionId}`,
+    });
+    await sendSystemMessage(transactionId, "Seller rejected the return. A dispute has been opened. TrustKar will review all evidence and resolve the case.");
+  }
+}
+
+/** Admin refunds buyer after seller accepted return or direct admin action */
+export async function adminRefundBuyer(transactionId, adminId, { partialAmount, note } = {}) {
+  const tx = await fetchTransactionById(transactionId);
+  if (!tx) throw new Error("Transaction not found");
+
+  const refundAmt = Number(partialAmount) || tx.amount;
+  await updateTransactionStatus(transactionId, ESCROW_STATUS.REFUNDED, {
+    refundedAt: serverTimestamp(),
+    refundAmount: refundAmt,
+    refundNote: note || "",
+    refundedBy: adminId,
+  });
+
+  await appendLedgerEntry({
+    transactionId,
+    escrowId: tx.escrowId,
+    type: LEDGER_TYPES.REFUND,
+    amount: refundAmt,
+    userId: tx.buyerId,
+    note: note || "Refund to buyer",
+  });
+
+  await appendAuditLog({
+    entityType: "transaction",
+    entityId: transactionId,
+    action: "refunded_to_buyer",
+    actorId: adminId,
+    actorRole: "admin",
+    meta: { refundAmount: refundAmt },
+  });
+
+  await createNotification({
+    userId: tx.buyerId,
+    type: NOTIFICATION_TYPES.PAYMENT_RELEASED,
+    title: "Refund processed",
+    body: `PKR ${refundAmt.toLocaleString()} refunded to you.`,
+    link: `/deal/${transactionId}`,
+  });
+  await createNotification({
+    userId: tx.sellerId,
+    type: NOTIFICATION_TYPES.DEAL_CANCELLED,
+    title: "Deal refunded",
+    body: "Buyer has been refunded.",
+    link: `/deal/${transactionId}`,
+  });
+  await sendSystemMessage(transactionId, `TrustKar processed refund of PKR ${refundAmt.toLocaleString()} to buyer. Deal closed.`);
+}
+
+/** Subscribe to a single transaction in real-time */
+export function subscribeTransaction(transactionId, callback) {
+  return onSnapshot(doc(db, COLLECTIONS.TRANSACTIONS, transactionId), (snap) => {
+    if (!snap.exists()) return callback(null);
+    callback({ id: snap.id, ...snap.data() });
+  });
+}
+
+/** Admin fetches returns awaiting seller review */
+export async function fetchPendingReturnReviews(max = 100) {
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.TRANSACTIONS),
+      where("status", "==", ESCROW_STATUS.SELLER_REVIEW),
+      limit(max)
+    )
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Admin fetches returns in transit */
+export async function fetchReturnsInTransit(max = 100) {
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.TRANSACTIONS),
+      where("status", "==", ESCROW_STATUS.RETURN_IN_TRANSIT),
+      limit(max)
+    )
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Admin fetches rejected items awaiting buyer return shipment */
+export async function fetchRejectedAwaitingReturn(max = 100) {
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.TRANSACTIONS),
+      where("status", "==", ESCROW_STATUS.REJECTED),
+      limit(max)
+    )
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Dispute negotiation chat */
+export async function sendDisputeMessage(disputeId, { senderId, senderRole, senderName, text, imageUrl }) {
+  const payload = {
+    senderId,
+    senderRole: senderRole || "buyer",
+    senderName: senderName || "",
+    text: (text || "").trim(),
+    createdAt: serverTimestamp(),
+  };
+  if (imageUrl) payload.imageUrl = imageUrl;
+  return addDoc(collection(db, COLLECTIONS.DISPUTES, disputeId, "messages"), payload);
+}
+
+export function subscribeDisputeMessages(disputeId, callback) {
+  const q = query(
+    collection(db, COLLECTIONS.DISPUTES, disputeId, "messages"),
+    limit(500)
+  );
+  return onSnapshot(q, (snap) => {
+    const list = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    callback(list);
+  });
+}
+
+export async function fetchDisputeById(disputeId) {
+  const snap = await getDoc(doc(db, COLLECTIONS.DISPUTES, disputeId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
 export async function fetchUserTransactions(uid) {
   const [buyerSnap, sellerSnap] = await Promise.all([
     getDocs(query(collection(db, COLLECTIONS.TRANSACTIONS), where("buyerId", "==", uid))),
