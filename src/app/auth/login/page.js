@@ -34,17 +34,19 @@ function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
-  const { login, user, register, profile } = useAuth();
+  const { login, user, register, profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (!user) return;
+    // Wait until profile finishes loading before redirecting
+    if (authLoading) return;
     // Redirect to onboarding if account type not selected yet
     if (profile && !profile.accountType) {
       router.replace("/account-type");
       return;
     }
     router.replace(redirect);
-  }, [user, profile, redirect, router]);
+  }, [user, profile, authLoading, redirect, router]);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
