@@ -49,7 +49,9 @@ export default function RootLayout({ children }) {
             <StandaloneBoot />
             <GlobalChatListener />
             <Navbar />
-            <main className="tk-main flex-1 pb-mobile-nav md:pb-0">{children}</main>
+            <main className="tk-main flex-1 pb-mobile-nav md:pb-0">
+              <div className="tk-layout-shell">{children}</div>
+            </main>
             <Footer />
             <MobileBottomNav />
             <GetAppInstallPrompt />
