@@ -62,11 +62,16 @@ export default function SellerDashboardPage() {
       fetchStoreAds(user.uid),
       fetchSellerCategories(user.uid),
     ]);
+    if (!b) {
+      setLoading(false);
+      router.replace("/account-type");
+      return;
+    }
     setBusiness(b);
     setAds(a);
     setCategories(c);
     setLoading(false);
-  }, [user]);
+  }, [user, router]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -74,12 +79,8 @@ export default function SellerDashboardPage() {
       router.replace("/auth/login?redirect=/seller-dashboard");
       return;
     }
-    if (profile?.accountType !== "business") {
-      router.replace("/account-type");
-      return;
-    }
     loadAll();
-  }, [user, profile, authLoading, router, loadAll]);
+  }, [user, authLoading, router, loadAll]);
 
   async function handleCreateCategory() {
     if (!newCategory.trim() || !user) return;
