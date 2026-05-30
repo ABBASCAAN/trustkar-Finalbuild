@@ -234,7 +234,7 @@ export default function TrackLeoPage() {
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: "135px",
+                  height: "165px",
                   background: "white",
                   zIndex: 20,
                 }}
