@@ -67,33 +67,82 @@ export default function TrackLeoPage() {
     const trackingNum = cn.trim();
 
     try {
-      // --- NEW: Client-side fetch via AllOrigins CORS proxy ---
-      const targetUrl = `https://pk.leopardscourier.com/shipment_tracking_view?cn_number=${encodeURIComponent(trackingNum)}`;
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      // --- 17TRACK API ---
+      // Step 1: Register tracking number
+      const registerRes = await fetch("https://api.17track.net/track/v2.2/gettransinfo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "17track-Api-Key": process.env.NEXT_PUBLIC_17TRACK_API_KEY || "",
+        },
+        body: JSON.stringify({
+          data: [{ number: trackingNum }],
+        }),
+      });
 
-      const res = await fetch(proxyUrl, { cache: "no-store" });
-      if (!res.ok) {
-        throw new Error("Proxy returned " + res.status);
+      if (!registerRes.ok) {
+        throw new Error("API returned " + registerRes.status);
       }
 
-      const html = await res.text();
+      const apiData = await registerRes.json();
 
-      // Check for error message
-      const plainText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const isError =
-        plainText.includes("appeared to be invalid") ||
-        plainText.includes("record not found");
+      // Check if valid data returned
+      const item = apiData?.data?.accepted?.[0] || apiData?.data?.rejected?.[0];
 
-      if (isError) {
+      if (!item || item.error) {
         setResult(`Your query about "${trackingNum}" appeared to be invalid / record not found. Please enter a valid / correct consignment number or contact Courier Partner for more details.`);
         setResultType("error");
       } else {
-        const cleaned = cleanTrackingHtml(html);
-        setResult(cleaned);
+        // Build clean HTML from API response
+        const trackInfo = item.track_info || {};
+        const shippingInfo = trackInfo.shipping_info || {};
+        const latestStatus = trackInfo.latest_status?.status || "N/A";
+        const latestEvent = trackInfo.latest_event?.description || "N/A";
+
+        let html = `
+          <div style="margin-bottom:1rem">
+            <h3 style="font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:0.5rem">Consignment No: ${trackingNum}</h3>
+            <p style="font-size:0.875rem;color:#0ea5e9;font-weight:600">Status: ${latestStatus}</p>
+          </div>
+        `;
+
+        if (shippingInfo) {
+          html += `<table style="width:100%;border-collapse:collapse;margin-bottom:1rem">`;
+          html += `<thead><tr style="background:#0ea5e9;color:white"><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Field</th><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Details</th></tr></thead>`;
+          html += `<tbody>`;
+
+          const rows = [
+            ["Shipper", shippingInfo.shipper_name || "N/A"],
+            ["Consignee", shippingInfo.recipient_name || "N/A"],
+            ["Origin", shippingInfo.shipper_address?.country || "N/A"],
+            ["Destination", shippingInfo.recipient_address?.country || "N/A"],
+            ["Latest Event", latestEvent],
+          ];
+
+          for (const [label, value] of rows) {
+            html += `<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:0.5rem;font-weight:600;color:#475569">${label}</td><td style="padding:0.5rem;color:#0f172a">${value}</td></tr>`;
+          }
+
+          html += `</tbody></table>`;
+        }
+
+        if (trackInfo.tracking?.providers?.[0]?.events?.length) {
+          const events = trackInfo.tracking.providers[0].events;
+          html += `<h4 style="font-size:0.875rem;font-weight:700;color:#0f172a;margin-bottom:0.5rem">Tracking History</h4>`;
+          html += `<table style="width:100%;border-collapse:collapse">`;
+          html += `<thead><tr style="background:#0ea5e9;color:white"><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Date</th><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Status</th><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Location</th></tr></thead>`;
+          html += `<tbody>`;
+          for (const evt of events.slice(0, 10)) {
+            const date = evt.time ? new Date(evt.time).toLocaleString() : "N/A";
+            html += `<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:0.5rem">${date}</td><td style="padding:0.5rem">${evt.description || "N/A"}</td><td style="padding:0.5rem">${evt.location || "N/A"}</td></tr>`;
+          }
+          html += `</tbody></table>`;
+        }
+
+        setResult(html);
         setResultType("success");
       }
     } catch {
-      // Proxy failed — show clean fallback with direct link
       setResultType("proxy-failed");
     } finally {
       setLoading(false);
