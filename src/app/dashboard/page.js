@@ -183,70 +183,74 @@ function DashboardInner() {
   const sales = transactions.filter((t) => t.sellerId === user.uid);
 
   return (
-    <div className="tk-container py-8">
-      {/* Cover / Profile header */}
-      <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-700 p-6 text-white shadow-lg">
-        <div className="relative z-10 flex items-center gap-4">
-          {profile?.photoURL ? (
-            <Image
-              src={profile.photoURL}
-              alt=""
-              width={56}
-              height={56}
-              className="h-14 w-14 rounded-full border-2 border-white/40 object-cover"
-              unoptimized
-            />
-          ) : (
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-black backdrop-blur-sm">
-              {(profile?.displayName || user?.email || "U").charAt(0).toUpperCase()}
-            </span>
-          )}
-          <div>
-            <h1 className="text-xl font-black sm:text-2xl">{profile?.displayName || "My Dashboard"}</h1>
-            <p className="text-sm text-sky-100">{user?.email}</p>
+    <div className="flex min-h-screen flex-col bg-slate-50 md:block md:min-h-0">
+      {/* Mobile: fixed TrustKar brand */}
+      <div className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm md:hidden">
+        <div className="flex items-center justify-center py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-700 text-xs font-black text-white shadow-sm">TK</span>
+            <span className="text-lg font-black tracking-tight text-slate-900">TrustKar</span>
           </div>
         </div>
       </div>
 
-      {/* Desktop: pill tabs */}
-      <div className="hidden gap-2 overflow-x-auto pb-2 scrollbar-hide md:flex">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition ${
-              tab === id ? "bg-cyan-600 text-white" : "bg-white text-slate-600 border border-slate-200"
-            }`}
-          >
-            <Icon size={16} /> {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Mobile: grid tiles */}
-      <div className="grid grid-cols-4 gap-2 md:hidden">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center transition active:scale-95 ${
-              tab === id ? "bg-cyan-600 text-white border-cyan-600" : "bg-white text-slate-600 border-slate-200"
-            }`}
-          >
-            <Icon size={18} />
-            <span className="text-[9px] font-bold leading-tight">{label}</span>
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+      {/* Mobile: fixed 4x2 button grid */}
+      <div className="sticky top-[52px] z-40 border-b border-slate-200/60 bg-white/95 backdrop-blur-sm px-3 py-2.5 md:hidden">
+        <div className="grid grid-cols-4 gap-2">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center transition active:scale-95 ${
+                tab === id ? "bg-gradient-to-br from-sky-500 to-cyan-600 text-white border-sky-500 shadow-sm" : "bg-white text-slate-600 border-slate-200"
+              }`}
+            >
+              <Icon size={17} />
+              <span className="text-[9px] font-bold leading-tight">{label}</span>
+            </button>
+          ))}
         </div>
-      ) : (
-        <div className="mt-8">
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto md:overflow-visible">
+        <div className="tk-container py-4 md:py-8">
+          {/* Desktop: Cover / Profile header */}
+          <div className="relative mb-6 hidden overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-700 p-6 text-white shadow-lg md:block">
+            <div className="relative z-10 flex items-center gap-4">
+              {profile?.photoURL ? (
+                <Image src={profile.photoURL} alt="" width={56} height={56} className="h-14 w-14 rounded-full border-2 border-white/40 object-cover" unoptimized />
+              ) : (
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-black backdrop-blur-sm">
+                  {(profile?.displayName || user?.email || "U").charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div>
+                <h1 className="text-xl font-black sm:text-2xl">{profile?.displayName || "My Dashboard"}</h1>
+                <p className="text-sm text-sky-100">{user?.email}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop: pill tabs */}
+          <div className="hidden gap-2 overflow-x-auto pb-2 scrollbar-hide md:flex">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button key={id} type="button" onClick={() => setTab(id)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition ${
+                  tab === id ? "bg-cyan-600 text-white" : "bg-white text-slate-600 border border-slate-200"
+                }`}>
+                <Icon size={16} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+            </div>
+          ) : (
+            <div className="mt-4 md:mt-8">
           {tab === "listings" && (
             <>
               <div className="mb-4 flex justify-between">
@@ -494,6 +498,8 @@ function DashboardInner() {
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
