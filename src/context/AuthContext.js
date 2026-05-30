@@ -15,6 +15,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { COLLECTIONS } from "@/lib/constants";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
+import { isPhoneRegistered } from "@/lib/firestore-helpers";
 
 const AuthContext = createContext(null);
 
@@ -97,13 +98,22 @@ export function AuthProvider({ children }) {
   }, [loadProfile]);
 
   async function register(email, password, displayName, phone) {
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone?.trim() || "";
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      // Enforce unique phone number globally
+      if (trimmedPhone) {
+        const phoneExists = await isPhoneRegistered(trimmedPhone);
+        if (phoneExists) {
+          throw new Error("This mobile number is already registered. Please login.");
+        }
+      }
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
       await updateProfile(cred.user, { displayName: displayName.trim() });
       await saveUserProfile(cred.user.uid, {
-        email: email.trim(),
+        email: trimmedEmail,
         displayName: displayName.trim(),
-        phone: phone?.trim() || "",
+        phone: trimmedPhone,
         phoneVerified: false,
         trustRating: 5.0,
         completedDeals: 0,
@@ -113,6 +123,10 @@ export function AuthProvider({ children }) {
       await loadProfile(cred.user);
       return cred.user;
     } catch (err) {
+      if (err.message?.includes("already registered")) throw err;
+      if (err.code === "auth/email-already-in-use") {
+        throw new Error("This email is already registered. Please login.");
+      }
       throw new Error(getAuthErrorMessage(err.code || err.message));
     }
   }

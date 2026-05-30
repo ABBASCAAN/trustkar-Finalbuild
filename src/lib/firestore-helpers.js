@@ -1516,6 +1516,18 @@ export async function markAllNotificationsRead(userId) {
   await batch.commit();
 }
 
+export async function isPhoneRegistered(phoneNumber) {
+  const normalized = normalizePakPhone(phoneNumber);
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.USERS),
+      where("phone", "==", normalized),
+      limit(1)
+    )
+  );
+  return !snap.empty;
+}
+
 /** Phone OTP verification (admin sends OTP via WhatsApp manually) */
 export async function generatePhoneOtp(userId, phoneNumber) {
   const otp = Math.floor(1000 + Math.random() * 9000).toString();

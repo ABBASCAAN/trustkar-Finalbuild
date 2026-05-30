@@ -22,10 +22,11 @@ import {
   Save,
   Loader2,
   CheckCircle2,
+  CheckCircle,
   Trash2,
   Plus,
 } from "lucide-react";
-import { cn, normalizePakPhone } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const PAYMENT_TYPES = [
   { id: "jazzcash", label: "JazzCash", icon: Smartphone },
@@ -154,10 +155,8 @@ export default function SettingsPage() {
   async function handleSaveProfile() {
     try {
       setSavingProfile(true);
-      const normalizedPhone = normalizePakPhone(phone);
       await updateUserProfile(user.uid, {
         displayName: displayName.trim(),
-        phone: normalizedPhone,
         city: city.trim(),
         address: address.trim(),
       });
@@ -294,21 +293,27 @@ export default function SettingsPage() {
             />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-600">Phone Number</label>
-              <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white">
-                <span className="flex h-11 items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500 select-none">
+              <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <span className="flex h-11 items-center border-r border-slate-200 bg-slate-100 px-3 text-sm font-bold text-slate-500 select-none">
                   +92
                 </span>
                 <input
                   type="tel"
+                  disabled
+                  readOnly
                   value={phone.replace(/^\+?92/, "").replace(/^0/, "")}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-                    setPhone(digits);
-                  }}
                   placeholder="3000000000"
-                  className="h-11 flex-1 bg-transparent px-3 text-sm outline-none"
+                  className="h-11 flex-1 bg-transparent px-3 text-sm text-slate-500 outline-none cursor-not-allowed"
                 />
+                {profile?.phoneVerified && (
+                  <span className="mr-3 flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    <CheckCircle size={10} /> Verified
+                  </span>
+                )}
               </div>
+              <p className="text-[10px] text-slate-400">
+                Phone number cannot be changed after registration. Contact support for help.
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-600">City</label>
