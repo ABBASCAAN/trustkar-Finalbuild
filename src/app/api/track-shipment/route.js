@@ -1,43 +1,52 @@
-function stripHtmlTags(html) {
+function cleanLeopardsHtml(html) {
+  // Remove scripts, styles, nav, header, footer elements
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<form[\s\S]*?<\/form>/gi, "")
+    .replace(/class="[^"]*header[^"]*"/gi, "")
+    .replace(/class="[^"]*navbar[^"]*"/gi, "")
+    .replace(/class="[^"]*footer[^"]*"/gi, "");
 }
 
-function extractTrackingMessage(html, cn) {
-  // Remove scripts/styles
-  let clean = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+function extractResultHtml(html, cn) {
+  let clean = cleanLeopardsHtml(html);
 
-  // Look for the query message pattern
-  const queryMatch = clean.match(/Your query about\s*["']?([^"'>]+)["']?\s*appeared to be invalid[^<]*/i);
-  if (queryMatch) {
-    return queryMatch[0].trim();
+  // Check for error message
+  const textContent = clean.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  if (textContent.includes("appeared to be invalid") || textContent.includes("record not found")) {
+    return {
+      type: "error",
+      html: `Your query about "${cn}" appeared to be invalid / record not found. Please enter a valid / correct consignment number or contact Leopards Courier for more details.`,
+    };
   }
 
-  // Look for record not found pattern
-  const notFoundMatch = clean.match(/record not found[^<]*/i);
-  if (notFoundMatch) {
-    return `Your query about "${cn}" appeared to be invalid / record not found. Please enter a valid / correct consignment number or contact Leopards Courier for more details.`;
+  // Find the tracking result section - usually after search form
+  // Try to extract from body content area
+  let resultHtml = clean;
+
+  // Remove everything before the first table or result section
+  const tableIndex = resultHtml.toLowerCase().indexOf("<table");
+  if (tableIndex > -1) {
+    // Try to find content before the table that might contain status info
+    const beforeTable = resultHtml.slice(0, tableIndex);
+    // Look for consignment info before table
+    const consignMatch = beforeTable.match(/consignment\s*no[^<]*/i);
+    if (consignMatch) {
+      resultHtml = resultHtml.slice(tableIndex - 200);
+    }
   }
 
-  // Look for tracking table/details (successful tracking)
-  const tableMatch = clean.match(/<table[\s\S]*?<\/table>/i);
-  if (tableMatch) {
-    return tableMatch[0];
-  }
+  // Remove obvious Leopards branding elements
+  resultHtml = resultHtml
+    .replace(/<img[^>]*logo[^>]*>/gi, "")
+    .replace(/<img[^>]*leopard[^>]*>/gi, "")
+    .replace(/Leopards Courier/gi, "Courier Partner");
 
-  // Fallback: extract meaningful body text
-  const text = stripHtmlTags(clean);
-  if (text.includes("invalid") || text.includes("not found")) {
-    return `Your query about "${cn}" appeared to be invalid / record not found. Please enter a valid / correct consignment number or contact Leopards Courier for more details.`;
-  }
-
-  return text.slice(0, 500);
+  return { type: "success", html: resultHtml };
 }
 
 export async function GET(request) {
@@ -61,11 +70,14 @@ export async function GET(request) {
       }
     );
     const html = await res.text();
-    const message = extractTrackingMessage(html, cn);
-    const isHtml = message.includes("<");
+    const result = extractResultHtml(html, cn);
 
     return new Response(
-      JSON.stringify({ message, isHtml, cn }),
+      JSON.stringify({
+        type: result.type,
+        html: result.html,
+        cn,
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (e) {

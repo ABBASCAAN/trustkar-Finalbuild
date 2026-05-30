@@ -8,7 +8,7 @@ export default function TrackLeoPage() {
   const [cn, setCn] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [isHtmlResult, setIsHtmlResult] = useState(false);
+  const [resultType, setResultType] = useState(null);
   const [error, setError] = useState("");
 
   async function handleSearch(e) {
@@ -17,15 +17,15 @@ export default function TrackLeoPage() {
     setLoading(true);
     setError("");
     setResult(null);
-    setIsHtmlResult(false);
+    setResultType(null);
     try {
       const res = await fetch(`/api/track-shipment?cn=${encodeURIComponent(cn.trim())}`);
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
-        setResult(data.message || "");
-        setIsHtmlResult(!!data.isHtml);
+        setResult(data.html || "");
+        setResultType(data.type || "text");
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -36,6 +36,80 @@ export default function TrackLeoPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <style jsx global>{`
+        .track-result table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          border-radius: 0.75rem !important;
+          overflow: hidden !important;
+          font-size: 0.875rem !important;
+        }
+        .track-result th,
+        .track-result td {
+          padding: 0.625rem 1rem !important;
+          border: 1px solid #e2e8f0 !important;
+          text-align: left !important;
+        }
+        .track-result th {
+          background: #0ea5e9 !important;
+          color: white !important;
+          font-weight: 700 !important;
+          text-transform: uppercase !important;
+          font-size: 0.75rem !important;
+        }
+        .track-result tr:nth-child(even) {
+          background: #f8fafc !important;
+        }
+        .track-result tr:hover {
+          background: #f1f5f9 !important;
+        }
+        .track-result td:first-child {
+          font-weight: 600 !important;
+          color: #475569 !important;
+          width: 30% !important;
+        }
+        .track-result td:last-child {
+          color: #0f172a !important;
+          font-weight: 500 !important;
+        }
+        .track-result img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        .track-result div[align="center"],
+        .track-result .text-center {
+          text-align: left !important;
+        }
+        .track-result font[color*="#FFD700"],
+        .track-result font[color*="#FFCC00"],
+        .track-result font[color*="#FFA500"],
+        .track-result [style*="background-color: rgb(255, 204"],
+        .track-result [style*="background-color: #FFCC"],
+        .track-result [style*="background-color: #FFC"],
+        .track-result [style*="background: rgb(255, 204"],
+        .track-result [style*="background: #FFCC"],
+        .track-result [style*="background: #FFC"] {
+          background: #e0f2fe !important;
+          color: #0369a1 !important;
+        }
+        .track-result [style*="background-color: rgb(68, 68"],
+        .track-result [style*="background-color: #444"],
+        .track-result [style*="background: rgb(68, 68"],
+        .track-result [style*="background: #444"] {
+          background: #0ea5e9 !important;
+          color: white !important;
+        }
+        .track-result h1, .track-result h2, .track-result h3, .track-result h4 {
+          color: #0f172a !important;
+          font-weight: 700 !important;
+        }
+        .track-result a {
+          color: #0ea5e9 !important;
+        }
+        .track-result br + br {
+          display: none !important;
+        }
+      `}</style>
       {/* Header */}
       <div className="bg-gradient-to-r from-sky-600 to-cyan-600 py-8">
         <div className="tk-container">
@@ -89,15 +163,15 @@ export default function TrackLeoPage() {
               <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">CN: {cn}</span>
             </div>
             <div className="p-5">
-              {isHtmlResult ? (
+              {resultType === "error" ? (
+                <div className="rounded-xl bg-amber-50 p-4 text-sm font-medium text-amber-800">
+                  {result}
+                </div>
+              ) : (
                 <div
                   className="track-result text-sm text-slate-700"
                   dangerouslySetInnerHTML={{ __html: result }}
                 />
-              ) : (
-                <div className="rounded-xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
-                  {result}
-                </div>
               )}
             </div>
           </div>
