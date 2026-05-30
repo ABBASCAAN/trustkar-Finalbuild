@@ -6,7 +6,6 @@ const links = [
   { label: "Browse listings", href: "/browse" },
   { label: "Post an ad", href: "/post-ad" },
   { label: "My dashboard", href: "/dashboard" },
-  { label: "Identity (KYC)", href: "/auth/kyc" },
   { label: "Why TrustKar?", href: "/compare" },
   { label: "Help & escrow policy", href: "/support" },
 ];

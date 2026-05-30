@@ -97,7 +97,7 @@ export function AuthProvider({ children }) {
     return () => unsub();
   }, [loadProfile]);
 
-  async function register(email, password, displayName, phone) {
+  async function register(email, password, displayName, phone, opts = {}) {
     const trimmedEmail = email.trim();
     const trimmedPhone = phone?.trim() || "";
     try {
@@ -114,7 +114,7 @@ export function AuthProvider({ children }) {
         email: trimmedEmail,
         displayName: displayName.trim(),
         phone: trimmedPhone,
-        phoneVerified: false,
+        phoneVerified: opts.phoneVerified || false,
         trustRating: 5.0,
         completedDeals: 0,
         role: "user",

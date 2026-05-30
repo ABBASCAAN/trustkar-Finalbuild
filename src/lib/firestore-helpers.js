@@ -1529,6 +1529,54 @@ export async function isPhoneRegistered(phoneNumber) {
   return !snap.empty;
 }
 
+export async function isEmailRegistered(email) {
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.USERS),
+      where("email", "==", email.trim().toLowerCase()),
+      limit(1)
+    )
+  );
+  return !snap.empty;
+}
+
+/** Signup OTP — generated before account creation */
+export async function generateSignupOtp(phoneNumber) {
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  const expiresAt = Timestamp.fromDate(new Date(Date.now() + 10 * 60 * 1000));
+  await addDoc(collection(db, "phone_otp_requests"), {
+    userId: null,
+    phone: phoneNumber,
+    otp,
+    status: "pending",
+    type: "signup",
+    createdAt: serverTimestamp(),
+    expiresAt,
+  });
+  return otp;
+}
+
+export async function verifySignupOtp(phoneNumber, otp) {
+  const q = query(
+    collection(db, "phone_otp_requests"),
+    where("phone", "==", phoneNumber),
+    limit(20)
+  );
+  const snap = await getDocs(q);
+  const now = Timestamp.now();
+  for (const d of snap.docs) {
+    const data = d.data();
+    if (data.type !== "signup") continue;
+    if (data.status !== "pending" && data.status !== "sent") continue;
+    if (data.expiresAt && data.expiresAt.seconds < now.seconds) continue;
+    if (data.otp === otp) {
+      await deleteDoc(doc(db, "phone_otp_requests", d.id));
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Phone OTP verification (admin sends OTP via WhatsApp manually) */
 export async function generatePhoneOtp(userId, phoneNumber) {
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
