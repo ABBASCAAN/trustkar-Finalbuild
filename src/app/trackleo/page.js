@@ -227,14 +227,14 @@ export default function TrackLeoPage() {
                 title="Tracking Result"
               />
 
-              {/* Bottom white mask — hides footer */}
+              {/* Bottom white mask — hides footer + Signup for Updates yellow bar */}
               <div
                 style={{
                   position: "absolute",
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: "90px",
+                  height: "135px",
                   background: "white",
                   zIndex: 20,
                 }}
