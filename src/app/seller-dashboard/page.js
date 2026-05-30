@@ -722,6 +722,9 @@ function StoreSettings({ business, userId, onUpdate }) {
   const [form, setForm] = useState({
     businessName: business.businessName || "",
     phone: business.phone || "",
+    description: business.description || "",
+    tagline: business.tagline || "",
+    shippingPolicies: business.shippingPolicies || "",
     location: {
       city: business.location?.city || "",
       state: business.location?.state || "",
@@ -761,6 +764,9 @@ function StoreSettings({ business, userId, onUpdate }) {
       await updateBusinessProfile(userId, {
         businessName: form.businessName,
         phone: form.phone,
+        description: form.description,
+        tagline: form.tagline,
+        shippingPolicies: form.shippingPolicies,
         location: form.location,
         socialLinks: form.socialLinks,
         logoUrl,
@@ -801,6 +807,45 @@ function StoreSettings({ business, userId, onUpdate }) {
               type="tel"
               value={form.phone}
               onChange={(e) => updateField("phone", e.target.value)}
+              className="tk-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+              Tagline
+            </label>
+            <input
+              type="text"
+              value={form.tagline}
+              onChange={(e) => updateField("tagline", e.target.value)}
+              placeholder="e.g. Quality Electronics, Trusted Deals"
+              className="tk-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+              Seller Description
+            </label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => updateField("description", e.target.value)}
+              placeholder="Describe your store, services, and what customers can expect..."
+              className="tk-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+              Shipping Policies
+            </label>
+            <textarea
+              rows={3}
+              value={form.shippingPolicies}
+              onChange={(e) => updateField("shippingPolicies", e.target.value)}
+              placeholder="e.g. Shipping policies, express manners, Escrow protection with 85 screen protection..."
               className="tk-input w-full"
             />
           </div>
