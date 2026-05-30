@@ -63,21 +63,27 @@ export default function SellerDashboardPage() {
   const loadAll = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [b, a, c] = await Promise.all([
-      fetchBusinessProfile(user.uid),
-      fetchStoreAds(user.uid),
-      fetchSellerCategories(user.uid),
-    ]);
-    if (!b) {
+    try {
+      const [b, a, c] = await Promise.all([
+        fetchBusinessProfile(user.uid),
+        fetchStoreAds(user.uid),
+        fetchSellerCategories(user.uid),
+      ]);
+      if (!b) {
+        setLoading(false);
+        router.replace("/account-type");
+        return;
+      }
+      setBusiness(b);
+      setAds(a);
+      setCategories(c);
+    } catch (err) {
+      console.error("Seller dashboard load error:", err);
+      showToast("Failed to load dashboard data. Please refresh.", "error");
+    } finally {
       setLoading(false);
-      router.replace("/account-type");
-      return;
     }
-    setBusiness(b);
-    setAds(a);
-    setCategories(c);
-    setLoading(false);
-  }, [user, router]);
+  }, [user, router, showToast]);
 
   useEffect(() => {
     if (authLoading) return;

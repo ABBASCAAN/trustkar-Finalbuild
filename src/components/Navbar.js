@@ -64,10 +64,12 @@ export default function Navbar() {
           {/* My Store */}
           {profile?.accountType === "business" && profile?.storeSlug && (
             <Link
-              href={`/store/${profile.storeSlug}`}
-              className="hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100 sm:px-3 sm:py-2 sm:text-xs md:inline-flex"
+              href="/seller-dashboard"
+              className="hidden flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wide text-amber-800 transition hover:bg-amber-100 sm:px-2.5 sm:py-2 md:flex"
+              title="My Store"
             >
-              <Store size={13} className="sm:h-3.5 sm:w-3.5" /> My Store
+              <Store size={18} className="text-amber-600 sm:h-5 sm:w-5" />
+              <span className="mt-0.5">MY STORE</span>
             </Link>
           )}
 

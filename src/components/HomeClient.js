@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import HeroSearch from "./HeroSearch";
 import CategoriesGrid from "./CategoriesGrid";
 import HomePromoSlots from "./HomePromoSlots";
@@ -10,7 +9,7 @@ import HomeCategoryRibbon from "./HomeCategoryRibbon";
 import HomeFeaturedBanner from "./HomeFeaturedBanner";
 import HomeCategoryRows from "./HomeCategoryRows";
 import Link from "next/link";
-import { Truck, Star, Handshake, Clock3, Store, X, LayoutGrid, Settings, ExternalLink, Crown } from "lucide-react";
+import { Truck, Star, Handshake, Clock3, Store, X, LayoutGrid } from "lucide-react";
 
 function ElegantFirework({ offsetX, offsetY, delay, color }) {
   const dots = 16;
@@ -101,12 +100,10 @@ function GoldenParticles() {
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, profile } = useAuth();
   const businessCreated = searchParams.get("business_created") === "1";
   const storeSlug = searchParams.get("store");
   const [showModal, setShowModal] = useState(businessCreated);
   const [showEffects, setShowEffects] = useState(businessCreated);
-  const isBusinessUser = user && profile?.accountType === "business" && profile?.storeSlug;
 
   useEffect(() => {
     if (businessCreated) {
@@ -173,46 +170,6 @@ export default function HomeClient() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Business User Quick Access Banner */}
-      {isBusinessUser && (
-        <section className="tk-container pb-0 pt-3 sm:pt-4">
-          <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 p-4 shadow-md shadow-amber-100/50 sm:rounded-3xl sm:p-5">
-            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-amber-300/20 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-yellow-400/15 blur-2xl" />
-
-            <div className="relative flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 shadow-md shadow-amber-200">
-                  <Crown size={22} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-amber-900 sm:text-base">
-                    Seller Hub
-                  </h3>
-                  <p className="text-[10px] font-semibold text-amber-700/80 sm:text-xs">
-                    Manage your store, products &amp; settings in one place
-                  </p>
-                </div>
-              </div>
-              <div className="flex w-full gap-2 sm:w-auto">
-                <Link
-                  href={`/store/${profile.storeSlug}`}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-800 shadow-sm transition hover:bg-amber-50 sm:flex-none"
-                >
-                  <Store size={14} /> My Store
-                </Link>
-                <Link
-                  href="/seller-dashboard"
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-3 py-2 text-xs font-bold text-white shadow-md shadow-amber-200 transition hover:from-amber-600 hover:to-yellow-600 sm:flex-none"
-                >
-                  <Settings size={14} /> Manage Store
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
       )}
 
       <HeroSearch />
