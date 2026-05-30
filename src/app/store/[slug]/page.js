@@ -102,6 +102,15 @@ export default function StoreFrontPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
 
+  function handleFacebookShare() {
+    const url = `${window.location.origin}/store/${slug}`;
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      "_blank",
+      "width=600,height=400"
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-slate-50">
@@ -141,7 +150,7 @@ export default function StoreFrontPage() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
-        {/* Share button */}
+        {/* Share buttons */}
         <div className="absolute right-3 top-3 flex gap-2">
           <button
             type="button"
@@ -152,6 +161,13 @@ export default function StoreFrontPage() {
           </button>
           <button
             type="button"
+            onClick={handleFacebookShare}
+            className="flex h-9 items-center gap-1.5 rounded-full bg-blue-600 px-3 text-xs font-bold text-white shadow-md transition hover:bg-blue-700"
+          >
+            <Facebook size={14} /> Share
+          </button>
+          <button
+            type="button"
             onClick={handleShare}
             className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold shadow-md transition ${
               copied
@@ -159,8 +175,8 @@ export default function StoreFrontPage() {
                 : "bg-white/90 text-slate-700 hover:bg-white"
             }`}
           >
-            {copied ? <CheckCircle size={14} /> : <Share2 size={14} />}
-            {copied ? "Copied" : "Share"}
+            {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
+            {copied ? "Copied" : "Copy"}
           </button>
         </div>
       </div>
