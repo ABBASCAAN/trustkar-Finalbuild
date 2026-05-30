@@ -1,130 +1,46 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Loader2, Package, Truck, ArrowLeft } from "lucide-react";
+import { useState, useRef } from "react";
+import { Search, Loader2, Package, Truck, ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function TrackLeoPage() {
   const [cn, setCn] = useState("");
+  const [activeCn, setActiveCn] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [resultType, setResultType] = useState(null);
-  const [error, setError] = useState("");
+  const [showResult, setShowResult] = useState(false);
+  const formRef = useRef(null);
 
-  async function handleSearch(e) {
+  function handleSearch(e) {
     e.preventDefault();
     if (!cn.trim()) return;
     setLoading(true);
-    setError("");
-    setResult(null);
-    setResultType(null);
-    try {
-      const res = await fetch(`/api/track-shipment?cn=${encodeURIComponent(cn.trim())}`);
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResult(data.html || "");
-        setResultType(data.type || "text");
+    setShowResult(false);
+    setActiveCn(cn.trim());
+
+    // Submit hidden form to iframe after short delay
+    setTimeout(() => {
+      if (formRef.current) {
+        formRef.current.submit();
       }
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
-    }
+      setShowResult(true);
+    }, 600);
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hidden iframe — loads Leopards tracking page in background */}
-      <iframe
-        src="https://pk.leopardscourier.com/tracking"
-        style={{
-          position: "absolute",
-          width: "1px",
-          height: "1px",
-          opacity: 0,
-          pointerEvents: "none",
-          border: "none",
-        }}
-        tabIndex={-1}
-        aria-hidden="true"
-        title="hidden-tracking"
-      />
-      <style jsx global>{`
-        .track-result table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-          border-radius: 0.75rem !important;
-          overflow: hidden !important;
-          font-size: 0.875rem !important;
-        }
-        .track-result th,
-        .track-result td {
-          padding: 0.625rem 1rem !important;
-          border: 1px solid #e2e8f0 !important;
-          text-align: left !important;
-        }
-        .track-result th {
-          background: #0ea5e9 !important;
-          color: white !important;
-          font-weight: 700 !important;
-          text-transform: uppercase !important;
-          font-size: 0.75rem !important;
-        }
-        .track-result tr:nth-child(even) {
-          background: #f8fafc !important;
-        }
-        .track-result tr:hover {
-          background: #f1f5f9 !important;
-        }
-        .track-result td:first-child {
-          font-weight: 600 !important;
-          color: #475569 !important;
-          width: 30% !important;
-        }
-        .track-result td:last-child {
-          color: #0f172a !important;
-          font-weight: 500 !important;
-        }
-        .track-result img {
-          max-width: 100% !important;
-          height: auto !important;
-        }
-        .track-result div[align="center"],
-        .track-result .text-center {
-          text-align: left !important;
-        }
-        .track-result font[color*="#FFD700"],
-        .track-result font[color*="#FFCC00"],
-        .track-result font[color*="#FFA500"],
-        .track-result [style*="background-color: rgb(255, 204"],
-        .track-result [style*="background-color: #FFCC"],
-        .track-result [style*="background-color: #FFC"],
-        .track-result [style*="background: rgb(255, 204"],
-        .track-result [style*="background: #FFCC"],
-        .track-result [style*="background: #FFC"] {
-          background: #e0f2fe !important;
-          color: #0369a1 !important;
-        }
-        .track-result [style*="background-color: rgb(68, 68"],
-        .track-result [style*="background-color: #444"],
-        .track-result [style*="background: rgb(68, 68"],
-        .track-result [style*="background: #444"] {
-          background: #0ea5e9 !important;
-          color: white !important;
-        }
-        .track-result h1, .track-result h2, .track-result h3, .track-result h4 {
-          color: #0f172a !important;
-          font-weight: 700 !important;
-        }
-        .track-result a {
-          color: #0ea5e9 !important;
-        }
-        .track-result br + br {
-          display: none !important;
-        }
-      `}</style>
+      {/* Hidden form — POSTs to Leopards result page in iframe */}
+      <form
+        ref={formRef}
+        action="https://pk.leopardscourier.com/shipment_tracking_view"
+        method="POST"
+        target="tracking-iframe"
+        style={{ display: "none" }}
+      >
+        <input type="hidden" name="cn_number" value={activeCn} />
+      </form>
+
       {/* Header */}
       <div className="bg-gradient-to-r from-sky-600 to-cyan-600 py-8">
         <div className="tk-container">
@@ -162,43 +78,71 @@ export default function TrackLeoPage() {
         </div>
       </div>
 
-      {/* Result Section */}
-      <div className="tk-container mt-6 pb-12">
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
-            <p className="text-sm font-bold text-red-600">{error}</p>
-          </div>
-        )}
-
-        {result && (
+      {/* Result Section — iframe with CSS masking */}
+      {showResult && activeCn && (
+        <div className="tk-container mt-6 pb-12">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
               <Truck size={16} className="text-sky-600" />
               <h2 className="text-sm font-black text-slate-800">Tracking Result</h2>
-              <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">CN: {cn}</span>
+              <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">CN: {activeCn}</span>
             </div>
-            <div className="p-5">
-              {resultType === "error" ? (
-                <div className="rounded-xl bg-amber-50 p-4 text-sm font-medium text-amber-800">
-                  {result}
-                </div>
-              ) : (
-                <div
-                  className="track-result text-sm text-slate-700"
-                  dangerouslySetInnerHTML={{ __html: result }}
-                />
-              )}
+
+            {/* Masked iframe container */}
+            <div className="relative" style={{ height: "600px", overflow: "hidden" }}>
+              {/* Top mask — hides Leopards header + search box */}
+              <div className="absolute inset-x-0 top-0 z-10 bg-white" style={{ height: "250px" }} />
+
+              {/* Bottom mask — hides footer */}
+              <div className="absolute inset-x-0 bottom-0 z-10 bg-white" style={{ height: "80px" }} />
+
+              {/* The iframe showing only result portion */}
+              <iframe
+                name="tracking-iframe"
+                style={{
+                  width: "100%",
+                  height: "1200px",
+                  border: "none",
+                  marginTop: "-250px",
+                }}
+                title="Tracking Result"
+              />
+            </div>
+
+            {/* Direct link fallback */}
+            <div className="border-t border-slate-100 px-5 py-3 text-center">
+              <a
+                href={`https://pk.leopardscourier.com/shipment_tracking_view?cn_number=${encodeURIComponent(activeCn)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-700"
+              >
+                <ExternalLink size={12} /> View on Courier Partner
+              </a>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {!result && !error && !loading && (
+      {/* Loading state */}
+      {loading && (
+        <div className="tk-container mt-6 pb-12">
+          <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center">
+            <Loader2 size={32} className="mx-auto animate-spin text-sky-500" />
+            <p className="mt-3 text-sm font-bold text-slate-500">Loading tracking details...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!showResult && !loading && (
+        <div className="tk-container mt-6 pb-12">
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
             <Truck size={48} className="mx-auto text-slate-200" />
             <p className="mt-3 text-sm font-bold text-slate-400">Enter a tracking number above to see shipment details</p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
