@@ -56,97 +56,23 @@ export default function TrackLeoPage() {
   const [resultType, setResultType] = useState(null); // 'success' | 'error' | 'proxy-failed'
   const [activeCn, setActiveCn] = useState("");
 
-  async function handleSearch(e) {
+  const [iframeSrc, setIframeSrc] = useState("");
+  const [showIframe, setShowIframe] = useState(false);
+
+  function handleSearch(e) {
     e.preventDefault();
     if (!cn.trim()) return;
     setLoading(true);
-    setResult(null);
-    setResultType(null);
+    setShowIframe(false);
     setActiveCn(cn.trim());
-
-    const trackingNum = cn.trim();
-
-    try {
-      // --- 17TRACK API ---
-      // Step 1: Register tracking number
-      const registerRes = await fetch("https://api.17track.net/track/v2.2/gettransinfo", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "17track-Api-Key": process.env.NEXT_PUBLIC_17TRACK_API_KEY || "",
-        },
-        body: JSON.stringify({
-          data: [{ number: trackingNum }],
-        }),
-      });
-
-      if (!registerRes.ok) {
-        throw new Error("API returned " + registerRes.status);
-      }
-
-      const apiData = await registerRes.json();
-
-      // Check if valid data returned
-      const item = apiData?.data?.accepted?.[0] || apiData?.data?.rejected?.[0];
-
-      if (!item || item.error) {
-        setResult(`Your query about "${trackingNum}" appeared to be invalid / record not found. Please enter a valid / correct consignment number or contact Courier Partner for more details.`);
-        setResultType("error");
-      } else {
-        // Build clean HTML from API response
-        const trackInfo = item.track_info || {};
-        const shippingInfo = trackInfo.shipping_info || {};
-        const latestStatus = trackInfo.latest_status?.status || "N/A";
-        const latestEvent = trackInfo.latest_event?.description || "N/A";
-
-        let html = `
-          <div style="margin-bottom:1rem">
-            <h3 style="font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:0.5rem">Consignment No: ${trackingNum}</h3>
-            <p style="font-size:0.875rem;color:#0ea5e9;font-weight:600">Status: ${latestStatus}</p>
-          </div>
-        `;
-
-        if (shippingInfo) {
-          html += `<table style="width:100%;border-collapse:collapse;margin-bottom:1rem">`;
-          html += `<thead><tr style="background:#0ea5e9;color:white"><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Field</th><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Details</th></tr></thead>`;
-          html += `<tbody>`;
-
-          const rows = [
-            ["Shipper", shippingInfo.shipper_name || "N/A"],
-            ["Consignee", shippingInfo.recipient_name || "N/A"],
-            ["Origin", shippingInfo.shipper_address?.country || "N/A"],
-            ["Destination", shippingInfo.recipient_address?.country || "N/A"],
-            ["Latest Event", latestEvent],
-          ];
-
-          for (const [label, value] of rows) {
-            html += `<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:0.5rem;font-weight:600;color:#475569">${label}</td><td style="padding:0.5rem;color:#0f172a">${value}</td></tr>`;
-          }
-
-          html += `</tbody></table>`;
-        }
-
-        if (trackInfo.tracking?.providers?.[0]?.events?.length) {
-          const events = trackInfo.tracking.providers[0].events;
-          html += `<h4 style="font-size:0.875rem;font-weight:700;color:#0f172a;margin-bottom:0.5rem">Tracking History</h4>`;
-          html += `<table style="width:100%;border-collapse:collapse">`;
-          html += `<thead><tr style="background:#0ea5e9;color:white"><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Date</th><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Status</th><th style="padding:0.5rem;text-align:left;font-size:0.75rem">Location</th></tr></thead>`;
-          html += `<tbody>`;
-          for (const evt of events.slice(0, 10)) {
-            const date = evt.time ? new Date(evt.time).toLocaleString() : "N/A";
-            html += `<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:0.5rem">${date}</td><td style="padding:0.5rem">${evt.description || "N/A"}</td><td style="padding:0.5rem">${evt.location || "N/A"}</td></tr>`;
-          }
-          html += `</tbody></table>`;
-        }
-
-        setResult(html);
-        setResultType("success");
-      }
-    } catch {
-      setResultType("proxy-failed");
-    } finally {
+    // Set iframe src to Leopards result page
+    setIframeSrc(
+      `https://pk.leopardscourier.com/shipment_tracking_view?cn_number=${encodeURIComponent(cn.trim())}`
+    );
+    setTimeout(() => {
       setLoading(false);
-    }
+      setShowIframe(true);
+    }, 900);
   }
 
   return (
@@ -265,34 +191,55 @@ export default function TrackLeoPage() {
           </div>
         )}
 
-        {/* Proxy failed fallback */}
-        {resultType === "proxy-failed" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-            <p className="text-sm font-bold text-slate-700">Unable to fetch tracking details automatically.</p>
-            <p className="mt-1 text-xs text-slate-500">You can view the tracking result directly on Courier Partner.</p>
-            <a
-              href={`https://pk.leopardscourier.com/shipment_tracking_view?cn_number=${encodeURIComponent(activeCn)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="tk-btn-primary mt-4 inline-flex items-center justify-center gap-2 text-sm"
-            >
-              <ExternalLink size={14} /> Open Tracking Result
-            </a>
-          </div>
-        )}
-
-        {/* Success — parsed HTML */}
-        {resultType === "success" && result && (
+        {/* Iframe Result — CSS cropped to show only middle portion */}
+        {showIframe && iframeSrc && (
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
               <Truck size={16} className="text-sky-600" />
               <h2 className="text-sm font-black text-slate-800">Tracking Result</h2>
               <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">CN: {activeCn}</span>
             </div>
-            <div
-              className="track-result p-5 text-sm text-slate-700"
-              dangerouslySetInnerHTML={{ __html: result }}
-            />
+
+            {/* Cropped iframe container */}
+            <div style={{ position: "relative", height: "650px", overflow: "hidden" }}>
+              {/* Top white mask — hides Leopards logo, nav, yellow bar (~155px) */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "155px",
+                  background: "white",
+                  zIndex: 20,
+                }}
+              />
+
+              {/* The iframe shifted up to hide top portion */}
+              <iframe
+                src={iframeSrc}
+                style={{
+                  width: "100%",
+                  height: "1400px",
+                  border: "none",
+                  marginTop: "-155px",
+                }}
+                title="Tracking Result"
+              />
+
+              {/* Bottom white mask — hides footer */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: "90px",
+                  background: "white",
+                  zIndex: 20,
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -300,12 +247,12 @@ export default function TrackLeoPage() {
         {loading && (
           <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center">
             <Loader2 size={32} className="mx-auto animate-spin text-sky-500" />
-            <p className="mt-3 text-sm font-bold text-slate-500">Fetching tracking details...</p>
+            <p className="mt-3 text-sm font-bold text-slate-500">Loading tracking details...</p>
           </div>
         )}
 
         {/* Empty state */}
-        {!resultType && !loading && (
+        {!showIframe && !loading && (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
             <Truck size={48} className="mx-auto text-slate-200" />
             <p className="mt-3 text-sm font-bold text-slate-400">Enter a tracking number above to see shipment details</p>
