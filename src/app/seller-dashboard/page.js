@@ -40,6 +40,12 @@ import {
   BarChart3,
   TrendingUp,
   Shield,
+  MapPin,
+  Phone,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Globe,
 } from "lucide-react";
 
 export default function SellerDashboardPage() {
@@ -221,6 +227,122 @@ export default function SellerDashboardPage() {
         {/* OVERVIEW */}
         {tab === "overview" && (
           <div className="space-y-4">
+            {/* Store Preview Card */}
+            {business && (
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                {/* Banner */}
+                <div className="relative h-36 w-full sm:h-48">
+                  <Image
+                    src={business.bannerUrl || "/store-banner-placeholder.svg"}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  {/* Logo + Name overlay */}
+                  <div className="absolute bottom-3 left-3 right-3 flex items-end gap-3 sm:bottom-4 sm:left-4 sm:right-4">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 border-white shadow-lg sm:h-20 sm:w-20">
+                      <Image
+                        src={business.logoUrl || "/store-logo-placeholder.svg"}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                    <div className="mb-1 min-w-0 flex-1">
+                      <h2 className="truncate text-lg font-black text-white sm:text-xl">
+                        {business.businessName}
+                      </h2>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                          <Star size={10} className="fill-amber-400 text-amber-400" /> {business.trustRating || 5.0}
+                        </span>
+                        {business.verified && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                            <Shield size={10} /> Verified
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                          <Package size={10} /> {ads.length} Products
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Row */}
+                <div className="px-4 py-3 sm:px-5 sm:py-4">
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500">
+                    {business.location?.city && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin size={13} className="text-red-500" />
+                        {business.location.city}
+                        {business.location.state && `, ${business.location.state}`}
+                      </span>
+                    )}
+                    {business.phone && (
+                      <span className="inline-flex items-center gap-1">
+                        <Phone size={13} className="text-emerald-600" />
+                        {business.phone}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Social links */}
+                  {business.socialLinks && Object.values(business.socialLinks).some(Boolean) && (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      {business.socialLinks.instagram && (
+                        <a href={business.socialLinks.instagram} target="_blank" rel="noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-purple-600 text-white shadow-sm transition hover:scale-110">
+                          <Instagram size={14} />
+                        </a>
+                      )}
+                      {business.socialLinks.facebook && (
+                        <a href={business.socialLinks.facebook} target="_blank" rel="noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm transition hover:scale-110">
+                          <Facebook size={14} />
+                        </a>
+                      )}
+                      {business.socialLinks.linkedin && (
+                        <a href={business.socialLinks.linkedin} target="_blank" rel="noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-white shadow-sm transition hover:scale-110">
+                          <Linkedin size={14} />
+                        </a>
+                      )}
+                      {business.socialLinks.website && (
+                        <a href={business.socialLinks.website} target="_blank" rel="noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-white shadow-sm transition hover:scale-110">
+                          <Globe size={14} />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/store/${business.slug}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-100"
+                    >
+                      <ExternalLink size={13} /> View Public Store
+                    </Link>
+                    <Link
+                      href="/post-ad"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      <Plus size={13} /> Add Product
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setTab("store")}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
+                    >
+                      <Settings size={13} /> Edit Store
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Stats cards */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[

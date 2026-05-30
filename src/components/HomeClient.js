@@ -9,7 +9,7 @@ import HomeCategoryRibbon from "./HomeCategoryRibbon";
 import HomeFeaturedBanner from "./HomeFeaturedBanner";
 import HomeCategoryRows from "./HomeCategoryRows";
 import Link from "next/link";
-import { Truck, Star, Handshake, Clock3, Store, X } from "lucide-react";
+import { Truck, Star, Handshake, Clock3, Store, X, LayoutGrid } from "lucide-react";
 
 function Confetti() {
   const colors = ["#f59e0b", "#10b981", "#0ea5e9", "#ef4444", "#8b5cf6", "#ec4899"];
@@ -100,6 +100,7 @@ export default function HomeClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const businessCreated = searchParams.get("business_created") === "1";
+  const storeSlug = searchParams.get("store");
   const [showModal, setShowModal] = useState(businessCreated);
   const [showEffects, setShowEffects] = useState(businessCreated);
 
@@ -124,8 +125,8 @@ export default function HomeClient() {
 
       {/* Business Created Success Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-sm rounded-3xl border border-emerald-200 bg-white p-6 shadow-2xl sm:max-w-md sm:p-8">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-md">
+          <div className="relative w-full max-w-sm rounded-3xl border-2 border-emerald-300 bg-white p-6 shadow-2xl sm:max-w-md sm:p-8">
             <button
               onClick={dismissModal}
               className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200"
@@ -152,18 +153,19 @@ export default function HomeClient() {
 
             <div className="flex flex-col gap-2.5">
               <Link
-                href="/seller-dashboard"
+                href={storeSlug ? `/store/${storeSlug}` : "/seller-dashboard"}
                 onClick={() => setShowModal(false)}
                 className="tk-btn-primary flex items-center justify-center gap-2 !py-3 text-sm font-bold"
               >
-                <Store size={16} /> Go To Seller Dashboard
+                <Store size={16} /> Go To My Store
               </Link>
-              <button
-                onClick={dismissModal}
-                className="rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
+              <Link
+                href="/browse"
+                onClick={() => setShowModal(false)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
               >
-                Continue Browsing
-              </button>
+                <LayoutGrid size={16} /> Browse Ads
+              </Link>
             </div>
           </div>
         </div>

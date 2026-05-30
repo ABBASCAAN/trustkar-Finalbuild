@@ -105,7 +105,7 @@ export default function BusinessSetupPage() {
         const res = await uploadImageToCloudinary(bannerFile, { folder: "store_banners" });
         bannerUrl = res.secureUrl || res.url;
       }
-      await createBusinessProfile(user.uid, {
+      const result = await createBusinessProfile(user.uid, {
         businessName: form.businessName,
         logoUrl,
         bannerUrl,
@@ -114,7 +114,7 @@ export default function BusinessSetupPage() {
         phone: form.phone,
         socialLinks: form.socialLinks,
       });
-      router.replace("/?business_created=1");
+      router.replace(`/?business_created=1&store=${result.slug}`);
     } catch (err) {
       console.error(err);
       setSubmitting(false);
