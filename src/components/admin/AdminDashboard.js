@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,12 +36,10 @@ import {
   fetchAdByListingId,
   getHomepageSettings,
   saveHomepageSettings,
-  fetchPendingOtpVerifications,
-  markOtpSent,
 } from "@/lib/firestore-helpers";
 import { ESCROW_STATUS, BANNER_SLOTS, DISPUTE_OUTCOMES } from "@/lib/constants";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
-import { formatPrice, formatPakPhone, getPhoneDigitsForWa } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import {
   Shield,
   Loader2,
@@ -60,12 +58,8 @@ import {
   Truck,
   RotateCcw,
   Banknote,
-  Smartphone,
-  MessageCircle,
-  Copy,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
-import { playOtpAlertSound } from "@/lib/sound";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminAdsManager from "./AdminAdsManager";
 import AdminUserManager from "./AdminUserManager";
@@ -78,7 +72,6 @@ const TABS = [
   { id: "returns", label: "Returns", icon: RotateCcw },
   { id: "refunds", label: "Refunds", icon: Banknote },
   { id: "disputes", label: "Disputes", icon: Shield },
-  { id: "otp", label: "OTP Verify", icon: Smartphone },
   { id: "approvals", label: "Ad approvals", icon: ClipboardCheck },
   { id: "sponsored", label: "Paid ads", icon: Megaphone },
   { id: "transactions", label: "Deals", icon: CreditCard },
@@ -228,9 +221,7 @@ export default function AdminDashboard() {
   const [pendingReturnReviews, setPendingReturnReviews] = useState([]);
   const [returnsInTransit, setReturnsInTransit] = useState([]);
   const [rejectedAwaitingReturn, setRejectedAwaitingReturn] = useState([]);
-  const [pendingOtps, setPendingOtps] = useState([]);
   const [loading, setLoading] = useState(true);
-  const prevOtpCountRef = useRef(0);
   const [txSearch, setTxSearch] = useState("");
   const [txUnlocked, setTxUnlocked] = useState(false);
   const [paymentForm, setPaymentForm] = useState(null);
@@ -269,31 +260,10 @@ export default function AdminDashboard() {
     loadAll();
   }, [user, isAdmin, authLoading]);
 
-  // Poll OTP requests every 10s when on OTP tab for near real-time updates
-  useEffect(() => {
-    if (!isAdmin || tab !== "otp") return;
-    const id = setInterval(async () => {
-      try {
-        const potp = await fetchPendingOtpVerifications();
-        setPendingOtps(potp);
-      } catch { /* ignore */ }
-    }, 10000);
-    return () => clearInterval(id);
-  }, [isAdmin, tab]);
-
-  // Play alert sound when new OTP verifications arrive
-  useEffect(() => {
-    if (!isAdmin) return;
-    if (pendingOtps.length > 0 && pendingOtps.length > prevOtpCountRef.current) {
-      playOtpAlertSound();
-    }
-    prevOtpCountRef.current = pendingOtps.length;
-  }, [pendingOtps.length, isAdmin]);
-
   async function loadAll() {
     setLoading(true);
     try {
-      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar, potp] = await Promise.all([
+      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar] = await Promise.all([
         fetchAllAds(),
         fetchAllTransactions(),
         fetchAllUsers(),
@@ -308,7 +278,6 @@ export default function AdminDashboard() {
         fetchPendingReturnReviews().catch(() => []),
         fetchReturnsInTransit().catch(() => []),
         fetchRejectedAwaitingReturn().catch(() => []),
-        fetchPendingOtpVerifications().catch(() => []),
       ]);
       setAds(a);
       setTransactions(t);
@@ -321,7 +290,6 @@ export default function AdminDashboard() {
       setPendingReturnReviews(prr);
       setReturnsInTransit(rit);
       setRejectedAwaitingReturn(rar);
-      setPendingOtps(potp);
       setHomepageSettings(hp);
       setPaymentForm(pset);
       setBanners(bn);
@@ -488,9 +456,6 @@ export default function AdminDashboard() {
               )}
               {id === "disputes" && openDisputes.length > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{openDisputes.length}</span>
-              )}
-              {id === "otp" && pendingOtps.length > 0 && (
-                <span className="rounded-full bg-sky-500 px-1.5 text-[10px] text-white">{pendingOtps.length}</span>
               )}
               {id === "approvals" && pendingApprovals.length > 0 && (
                 <span className="rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{pendingApprovals.length}</span>
@@ -668,84 +633,6 @@ export default function AdminDashboard() {
                 showToast={showToast}
               />
             ))}
-          </div>
-        )}
-
-        {tab === "otp" && (
-          <div className="space-y-4">
-            <h3 className="mb-3 text-sm font-bold text-slate-700">Pending phone OTP verifications</h3>
-            {pendingOtps.length === 0 ? (
-              <p className="text-slate-500">No pending OTP verifications.</p>
-            ) : (
-              pendingOtps.map((otpItem) => {
-                const phone = otpItem.phone || "";
-                const otpCode = otpItem.otp || "";
-                const userId = otpItem.userId || "";
-                const ts = otpItem.createdAt;
-                const timeStr = ts?.toDate
-                  ? ts.toDate().toLocaleString("en-PK")
-                  : ts?.seconds
-                  ? new Date(ts.seconds * 1000).toLocaleString("en-PK")
-                  : "Just now";
-                const formattedPhone = formatPakPhone(phone);
-                const waDigits = getPhoneDigitsForWa(phone);
-                const waLink = waDigits ? `https://wa.me/${waDigits}?text=Your+TrustKar+verification+OTP+is:+${otpCode}` : "";
-                return (
-                  <div key={otpItem.id} className="tk-card space-y-3 !p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{formattedPhone}</p>
-                        <p className="text-xs text-slate-500">{phone} · Requested: {timeStr}</p>
-                      </div>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Pending</span>
-                    </div>
-
-                    {/* OTP Display — big copyable button */}
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(otpCode); showToast("OTP copied! Paste in WhatsApp", "success"); }}
-                      className="group w-full rounded-xl border-2 border-dashed border-sky-300 bg-sky-50 p-4 text-center transition hover:border-sky-500 hover:bg-sky-100 active:scale-[0.98]"
-                    >
-                      <p className="text-[10px] font-bold uppercase text-sky-600">Tap to copy OTP</p>
-                      <p className="mt-1 text-3xl font-black tracking-[0.3em] text-sky-800">{otpCode}</p>
-                      <p className="mt-1 text-[10px] text-sky-600">Valid 10 min · Click to copy</p>
-                    </button>
-
-                    <div className="flex flex-wrap gap-2">
-                      {waLink && (
-                        <a
-                          href={waLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
-                        >
-                          <Smartphone size={14} /> Send on WhatsApp
-                        </a>
-                      )}
-                      {userId && (
-                        <Link
-                          href={`/seller/${userId}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700"
-                        >
-                          <MessageCircle size={14} /> View user
-                        </Link>
-                      )}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await markOtpSent(otpItem.id);
-                          showToast("Marked as sent", "success");
-                          await loadAll();
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300"
-                      >
-                        <CheckCircle size={14} /> Mark sent
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
           </div>
         )}
 
