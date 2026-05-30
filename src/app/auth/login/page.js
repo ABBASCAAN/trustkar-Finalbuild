@@ -189,135 +189,85 @@ function AuthPage() {
     }
   }
 
-  const cardWrap = "w-full sm:w-1/2";
+  const cardWrap = "group/card w-full sm:w-1/2";
+  const cardInner =
+    "h-full rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-sm transition-all duration-700 ease-out sm:p-8 sm:group-hover/wrap:group-[&:not(:hover)]/card:opacity-40 sm:group-hover/wrap:group-[&:not(:hover)]/card:scale-[0.97] sm:group-hover/wrap:group-[&:not(:hover)]/card:blur-[2px]";
 
   return (
     <AuthShell title="Welcome to TrustKar" subtitle="Pakistan's safest escrow marketplace">
       {/* Mobile tab toggle */}
-      <div className="mb-5 flex rounded-full border border-slate-200 bg-slate-50 p-1 sm:hidden">
+      <div className="mb-5 flex rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm backdrop-blur-sm sm:hidden">
         <button type="button" onClick={() => setMobileTab("login")}
-          className={`flex-1 rounded-full py-2 text-xs font-bold transition ${mobileTab === "login" ? "bg-slate-900 text-white shadow" : "text-slate-500"}`}>Sign in</button>
+          className={`flex-1 rounded-full py-2.5 text-xs font-bold transition ${mobileTab === "login" ? "bg-slate-900 text-white shadow" : "text-slate-500"}`}>Sign in</button>
         <button type="button" onClick={() => setMobileTab("register")}
-          className={`flex-1 rounded-full py-2 text-xs font-bold transition ${mobileTab === "register" ? "bg-slate-900 text-white shadow" : "text-slate-500"}`}>Create account</button>
+          className={`flex-1 rounded-full py-2.5 text-xs font-bold transition ${mobileTab === "register" ? "bg-slate-900 text-white shadow" : "text-slate-500"}`}>Create account</button>
       </div>
 
-      {/* Desktop split + mobile conditional */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-        {/* LOGIN SIDE */}
-        <div className={`${cardWrap} ${mobileTab !== "login" ? "hidden sm:block" : ""}`}>
-          <div className="tk-card h-full !p-6 sm:!p-9">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100">
-                <LogIn size={22} className="text-sky-700" />
-              </div>
-              <div>
-                <p className="text-base font-black text-slate-900">Sign in</p>
-                <p className="text-xs text-slate-500">Access your account</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">
-                  <Mail size={12} /> Email
-                </label>
-                <input type="email" required placeholder="ali@example.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
-                  className="tk-input !py-3 text-sm" autoComplete="email" />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">
-                  <KeyRound size={12} /> Password
-                </label>
-                <div className="relative">
-                  <input type={loginShowPass ? "text" : "password"} required placeholder="••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
-                    className="tk-input w-full !py-3 pr-10 text-sm" autoComplete="current-password" />
-                  <button type="button" onClick={() => setLoginShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    {loginShowPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <Link href="/auth/forgot-password" className="text-xs font-bold text-sky-700 hover:underline">Forgot password?</Link>
-              </div>
-
-              {loginError && <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{loginError}</div>}
-
-              <button type="submit" disabled={loginLoading} className="tk-btn-primary flex w-full items-center justify-center gap-2 !py-3.5 text-sm font-bold">
-                {loginLoading ? <Loader2 className="animate-spin" size={18} /> : <><ArrowRight size={18} /> Sign in</>}
-              </button>
-            </form>
-
-            <p className="mt-5 text-center text-sm text-slate-500 sm:hidden">
-              No account? <button type="button" onClick={() => setMobileTab("register")} className="font-bold text-sky-700 hover:underline">Create one</button>
-            </p>
-          </div>
-        </div>
-
-        {/* OR divider */}
-        <div className="hidden flex-col items-center justify-center sm:flex">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-400 shadow-sm">OR</div>
-        </div>
-
-        {/* REGISTER SIDE */}
+      {/* Desktop split + mobile conditional — Signup LEFT, Login RIGHT */}
+      <div className="group/wrap flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+        {/* REGISTER SIDE — LEFT */}
         <div className={`${cardWrap} ${mobileTab !== "register" ? "hidden sm:block" : ""}`}>
-          <div className="tk-card h-full !p-6 sm:!p-9">
+          <div className={cardInner}>
             {regStep === "form" && (
               <>
-                <div className="mb-6 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100">
-                    <Sparkles size={22} className="text-emerald-700" />
+                <div className="mb-7 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-200">
+                    <Sparkles size={24} className="text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-base font-black text-slate-900">Create account</p>
-                    <p className="text-xs text-slate-500">Join & verify in 2 minutes</p>
+                    <p className="text-lg font-black text-slate-900">Create account</p>
+                    <p className="text-xs font-medium text-slate-400">Join & verify in 2 minutes</p>
                   </div>
                 </div>
 
                 <form onSubmit={handleSendOtp} className="space-y-4">
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">
-                      <User size={12} /> Full Name
+                    <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      <User size={13} /> Full Name
                     </label>
-                    <input required placeholder="Ali Khan" value={regName} onChange={(e) => setRegName(e.target.value)} className="tk-input !py-3 text-sm" />
+                    <input required placeholder="Ali Khan" value={regName} onChange={(e) => setRegName(e.target.value)}
+                      className="tk-input !rounded-xl !py-3.5 text-sm transition focus:ring-2 focus:ring-emerald-200" />
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">
-                      <Mail size={12} /> Email
+                    <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      <Mail size={13} /> Email
                     </label>
-                    <input type="email" required placeholder="ali@example.com" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="tk-input !py-3 text-sm" />
+                    <input type="email" required placeholder="ali@example.com" value={regEmail} onChange={(e) => setRegEmail(e.target.value)}
+                      className="tk-input !rounded-xl !py-3.5 text-sm transition focus:ring-2 focus:ring-emerald-200" />
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">
-                      <Smartphone size={12} /> WhatsApp Number
+                    <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      <Smartphone size={13} /> WhatsApp Number
                     </label>
-                    <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-emerald-200 transition">
-                      <span className="flex h-11 items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500 select-none">+92</span>
-                      <input type="tel" value={regPhone} onChange={(e) => validatePhoneInput(e.target.value)} placeholder="3001234567" className="h-11 flex-1 bg-transparent px-3 text-sm outline-none" />
+                    <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm transition focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100">
+                      <span className="flex h-12 items-center border-r border-slate-200 bg-slate-50 px-3.5 text-sm font-bold text-slate-500 select-none">+92</span>
+                      <input type="tel" value={regPhone} onChange={(e) => validatePhoneInput(e.target.value)} placeholder="3001234567"
+                        className="h-12 flex-1 bg-transparent px-3.5 text-sm outline-none" />
                     </div>
-                    <p className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600/80">
                       <MessageCircle size={11} /> Your active WhatsApp number for OTP
                     </p>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">
-                      <KeyRound size={12} /> Password
+                    <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      <KeyRound size={13} /> Password
                     </label>
                     <div className="relative">
-                      <input type={regShowPass ? "text" : "password"} required placeholder="Min 6 characters" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="tk-input w-full !py-3 pr-10 text-sm" />
-                      <button type="button" onClick={() => setRegShowPass((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                        {regShowPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <input type={regShowPass ? "text" : "password"} required placeholder="Min 6 characters" value={regPassword} onChange={(e) => setRegPassword(e.target.value)}
+                        className="tk-input w-full !rounded-xl !py-3.5 pr-10 text-sm transition focus:ring-2 focus:ring-emerald-200" />
+                      <button type="button" onClick={() => setRegShowPass((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600">
+                        {regShowPass ? <EyeOff size={17} /> : <Eye size={17} />}
                       </button>
                     </div>
                   </div>
 
-                  {regError && <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{regError}</div>}
+                  {regError && <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">{regError}</div>}
 
-                  <button type="submit" disabled={regLoading} className="tk-btn-primary flex w-full items-center justify-center gap-2 !py-3.5 text-sm font-bold">
+                  <button type="submit" disabled={regLoading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-md shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg active:translate-y-0 disabled:opacity-60">
                     {regLoading ? <Loader2 className="animate-spin" size={18} /> : <><Send size={18} /> Send OTP</>}
                   </button>
                 </form>
@@ -329,60 +279,121 @@ function AuthPage() {
             )}
 
             {regStep === "otp" && (
-              <div className="space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-100">
-                    <Lock size={22} className="text-amber-600" />
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 ring-1 ring-amber-200">
+                    <Lock size={24} className="text-amber-600" />
                   </div>
                   <div>
-                    <p className="text-base font-black text-slate-900">Verify WhatsApp</p>
-                    <p className="text-xs text-slate-500">Admin will send OTP to +92 {regPhone}</p>
+                    <p className="text-lg font-black text-slate-900">Verify WhatsApp</p>
+                    <p className="text-xs font-medium text-slate-400">OTP sent to +92 {regPhone}</p>
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-sky-50 p-5 text-center">
-                  <p className="text-[11px] font-bold uppercase text-sky-600">Enter OTP Code</p>
+                <div className="rounded-2xl bg-sky-50/80 p-6 text-center ring-1 ring-sky-100">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-sky-600">Enter OTP Code</p>
                   <input value={regOtp} onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    placeholder="• • • •" className="mt-3 w-full bg-transparent text-center text-4xl font-black tracking-[0.4em] text-sky-900 outline-none placeholder:text-sky-300"
+                    placeholder="• • • •" className="mt-4 w-full bg-transparent text-center text-4xl font-black tracking-[0.5em] text-sky-900 outline-none placeholder:text-sky-300"
                     type="tel" inputMode="numeric" />
-                  <p className="mt-3 text-[11px] text-sky-500">Valid for 10 minutes only</p>
+                  <p className="mt-3 text-[11px] font-medium text-sky-500">Valid for 10 minutes</p>
                 </div>
 
-                {regError && <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700">{regError}</div>}
+                {regError && <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">{regError}</div>}
 
                 <button type="button" disabled={regBusy || regOtp.length !== 4} onClick={handleVerifyAndCreate}
-                  className="tk-btn-primary flex w-full items-center justify-center gap-2 !py-3.5 text-sm font-bold">
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 text-sm font-bold text-white shadow-lg shadow-slate-300/40 transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl active:translate-y-0 disabled:opacity-60">
                   {regBusy ? <Loader2 className="animate-spin" size={18} /> : <><ShieldCheck size={18} /> Verify & Create Account</>}
                 </button>
 
                 <button type="button" onClick={() => { setRegStep("form"); setRegOtp(""); setRegError(""); clearSignupSession(); }}
-                  className="flex w-full items-center justify-center gap-1 text-center text-sm font-bold text-slate-500 hover:text-sky-600">
+                  className="flex w-full items-center justify-center gap-1 text-center text-sm font-bold text-slate-400 transition hover:text-sky-600">
                   <ArrowLeft size={14} /> Back to details
                 </button>
               </div>
             )}
 
             {regStep === "done" && (
-              <div className="space-y-5 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-                  <ShieldCheck size={32} className="text-emerald-600" />
+              <div className="space-y-6 text-center">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-200">
+                  <ShieldCheck size={36} className="text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-black text-emerald-900">Account Created</p>
-                  <p className="mt-1 text-sm text-emerald-700">Your account is fully activated with verified KYC. Start buying and selling safely.</p>
+                  <p className="text-xl font-black text-emerald-900">Account Created</p>
+                  <p className="mt-2 text-sm font-medium text-emerald-700/80">Your account is fully activated with verified KYC. Start buying and selling safely.</p>
                 </div>
                 <button type="button" onClick={() => router.replace("/dashboard")}
-                  className="tk-btn-primary flex w-full items-center justify-center gap-2 !py-3.5 text-sm font-bold">
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-md shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg active:translate-y-0">
                   <ArrowRight size={18} /> Continue to Dashboard
                 </button>
               </div>
             )}
           </div>
         </div>
+
+        {/* OR divider */}
+        <div className="hidden flex-col items-center justify-center sm:flex">
+          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-400 shadow-sm">
+            OR
+            <span className="absolute inset-0 rounded-full bg-slate-100 opacity-0 transition-opacity group-hover/wrap:opacity-20" />
+          </div>
+        </div>
+
+        {/* LOGIN SIDE — RIGHT */}
+        <div className={`${cardWrap} ${mobileTab !== "login" ? "hidden sm:block" : ""}`}>
+          <div className={cardInner}>
+            <div className="mb-7 flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 ring-1 ring-sky-200">
+                <LogIn size={24} className="text-sky-600" />
+              </div>
+              <div>
+                <p className="text-lg font-black text-slate-900">Sign in</p>
+                <p className="text-xs font-medium text-slate-400">Access your account</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  <Mail size={13} /> Email
+                </label>
+                <input type="email" required placeholder="ali@example.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+                  className="tk-input !rounded-xl !py-3.5 text-sm transition focus:ring-2 focus:ring-sky-200" autoComplete="email" />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  <KeyRound size={13} /> Password
+                </label>
+                <div className="relative">
+                  <input type={loginShowPass ? "text" : "password"} required placeholder="••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
+                    className="tk-input w-full !rounded-xl !py-3.5 pr-10 text-sm transition focus:ring-2 focus:ring-sky-200" autoComplete="current-password" />
+                  <button type="button" onClick={() => setLoginShowPass((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600">
+                    {loginShowPass ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <Link href="/auth/forgot-password" className="text-xs font-bold text-sky-700 transition hover:text-sky-800 hover:underline">Forgot password?</Link>
+              </div>
+
+              {loginError && <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">{loginError}</div>}
+
+              <button type="submit" disabled={loginLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 py-3.5 text-sm font-bold text-white shadow-md shadow-sky-200/60 transition hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-lg active:translate-y-0 disabled:opacity-60">
+                {loginLoading ? <Loader2 className="animate-spin" size={18} /> : <><ArrowRight size={18} /> Sign in</>}
+              </button>
+            </form>
+
+            <p className="mt-5 text-center text-sm text-slate-500 sm:hidden">
+              No account? <button type="button" onClick={() => setMobileTab("register")} className="font-bold text-sky-700 hover:underline">Create one</button>
+            </p>
+          </div>
+        </div>
       </div>
 
-      <p className="mt-5 text-center text-xs text-slate-500">
-        <Link href="/support" className="text-sky-700 hover:underline">Need help? Contact support</Link>
+      <p className="mt-6 text-center text-xs font-medium text-slate-400">
+        <Link href="/support" className="text-sky-600 transition hover:text-sky-700 hover:underline">Need help? Contact support</Link>
       </p>
     </AuthShell>
   );
