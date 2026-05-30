@@ -1535,6 +1535,7 @@ export async function generatePhoneOtp(userId, phoneNumber) {
     otp,
     status: "pending",
     createdAt: serverTimestamp(),
+    expiresAt,
   });
   return otp;
 }
@@ -1553,6 +1554,20 @@ export async function verifyPhoneOtp(userId, otp) {
     phoneOtpExpiresAt: null,
     verifiedAt: serverTimestamp(),
   });
+  // Remove OTP request from admin panel immediately
+  try {
+    const qReq = query(
+      collection(db, "phone_otp_requests"),
+      where("userId", "==", userId)
+    );
+    const reqSnap = await getDocs(qReq);
+    for (const d of reqSnap.docs) {
+      const item = d.data();
+      if (item.otp === otp && (item.status === "pending" || item.status === "sent")) {
+        await deleteDoc(doc(db, "phone_otp_requests", d.id));
+      }
+    }
+  } catch {}
 }
 
 export async function fetchPendingOtpVerifications() {
@@ -1562,9 +1577,22 @@ export async function fetchPendingOtpVerifications() {
     limit(50)
   );
   const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((item) => item.status === "pending");
+  const now = Timestamp.now();
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const validItems = [];
+  for (const item of items) {
+    if (item.status !== "pending" && item.status !== "sent") continue;
+    const expiresAt = item.expiresAt;
+    if (expiresAt && expiresAt.seconds < now.seconds) {
+      // Auto-expire outdated OTP requests
+      try {
+        await updateDoc(doc(db, "phone_otp_requests", item.id), { status: "expired", expiredAt: serverTimestamp() });
+      } catch {}
+      continue;
+    }
+    validItems.push(item);
+  }
+  return validItems;
 }
 
 export async function markOtpSent(requestId) {
