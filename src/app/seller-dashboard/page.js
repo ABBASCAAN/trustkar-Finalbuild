@@ -15,6 +15,8 @@ import {
   toggleAdBestSeller,
   toggleAdActive,
   updateAdSellerCategory,
+  countAdsThisMonth,
+  upgradeBusinessToPro,
 } from "@/lib/firestore-helpers";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { AD_STATUS } from "@/lib/constants";
@@ -46,6 +48,8 @@ import {
   Facebook,
   Linkedin,
   Globe,
+  Crown,
+  Zap,
 } from "lucide-react";
 
 export default function SellerDashboardPage() {
@@ -59,6 +63,8 @@ export default function SellerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [newCategory, setNewCategory] = useState("");
   const [saving, setSaving] = useState(false);
+  const [adsThisMonth, setAdsThisMonth] = useState(0);
+  const [proLoading, setProLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
     if (!user) return;
@@ -77,9 +83,14 @@ export default function SellerDashboardPage() {
       setBusiness(b);
       setAds(a);
       setCategories(c);
+      setAdsThisMonth(countAdsThisMonth(a));
     } catch (err) {
       console.error("Seller dashboard load error:", err);
-      showToast("Failed to load dashboard data. Please refresh.", "error");
+      // Silent fail on initial load — empty state is handled by UI
+      // Only show toast if we already had data and refresh failed
+      if (business) {
+        showToast("Failed to refresh data. Please try again.", "error");
+      }
     } finally {
       setLoading(false);
     }
@@ -155,6 +166,28 @@ export default function SellerDashboardPage() {
       showToast("Category assigned", "success");
     } catch {
       showToast("Failed to assign", "error");
+    }
+  }
+
+  const FREE_AD_LIMIT = 5;
+  const PRO_AD_LIMIT = 25;
+  const isPro = business?.isPro === true;
+  const adLimit = isPro ? PRO_AD_LIMIT : FREE_AD_LIMIT;
+  const adsRemaining = Math.max(0, adLimit - adsThisMonth);
+  const canPostAd = adsRemaining > 0;
+
+  async function handleUpgradePro() {
+    if (!user) return;
+    setProLoading(true);
+    try {
+      await upgradeBusinessToPro(user.uid, "monthly");
+      showToast("PRO Shop activated! You can now post up to 25 ads/month.", "success");
+      await loadAll();
+    } catch (err) {
+      console.error("PRO upgrade error:", err);
+      showToast("Failed to activate PRO. Please try again.", "error");
+    } finally {
+      setProLoading(false);
     }
   }
 
@@ -270,6 +303,11 @@ export default function SellerDashboardPage() {
                             <Shield size={10} /> Verified
                           </span>
                         )}
+                        {isPro && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                            <Crown size={10} /> PRO
+                          </span>
+                        )}
                         <span className="inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
                           <Package size={10} /> {ads.length} Products
                         </span>
@@ -367,13 +405,52 @@ export default function SellerDashboardPage() {
               ))}
             </div>
 
-            {/* Quick actions */}
+            {/* Ad Limit + Quick actions */}
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-black text-slate-900">Quick Actions</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-black text-slate-900">Quick Actions</h3>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold uppercase ${adsRemaining === 0 ? "text-red-500" : "text-slate-400"}`}>
+                    {adsThisMonth}/{adLimit} ads this month
+                  </span>
+                  {!isPro && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                      Free Plan
+                    </span>
+                  )}
+                  {isPro && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                      PRO Plan
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Ad usage bar */}
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    adsThisMonth >= adLimit ? "bg-red-500" : isPro ? "bg-amber-400" : "bg-sky-500"
+                  }`}
+                  style={{ width: `${Math.min(100, (adsThisMonth / adLimit) * 100)}%` }}
+                />
+              </div>
+
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <Link href="/post-ad" className="tk-btn-primary text-center text-xs">
-                  <Plus size={14} className="mr-1 inline" /> Add Product
-                </Link>
+                {canPostAd ? (
+                  <Link href="/post-ad" className="tk-btn-primary text-center text-xs">
+                    <Plus size={14} className="mr-1 inline" /> Add Product
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-200 px-6 py-2.5 text-xs font-bold text-slate-400"
+                    title="Ad limit reached. Upgrade to PRO to post more."
+                  >
+                    <Plus size={14} /> Limit Reached
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setTab("products")}
@@ -389,6 +466,40 @@ export default function SellerDashboardPage() {
                   <Settings size={14} className="mr-1 inline" /> Edit Store
                 </button>
               </div>
+
+              {/* Get PRO Shop banner */}
+              {!isPro && (
+                <div className="pro-glow-banner relative mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 p-4">
+                  <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-300/20 blur-2xl" />
+                  <div className="pointer-events-none absolute -bottom-6 -left-6 h-16 w-16 rounded-full bg-yellow-400/15 blur-2xl" />
+                  <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="pro-icon-glow flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-200/50">
+                        <Crown size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-amber-900">Get PRO Shop</h4>
+                        <p className="text-[10px] font-semibold text-amber-700/80">
+                          25 ads/month · Best Seller badges · Priority support
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleUpgradePro}
+                      disabled={proLoading}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-amber-200/50 transition hover:from-amber-600 hover:to-yellow-600 disabled:opacity-60"
+                    >
+                      {proLoading ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Zap size={14} />
+                      )}
+                      Activate PRO
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Recent products */}

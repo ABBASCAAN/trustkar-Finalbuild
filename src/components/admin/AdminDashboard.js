@@ -36,6 +36,9 @@ import {
   fetchAdByListingId,
   getHomepageSettings,
   saveHomepageSettings,
+  fetchAllBusinesses,
+  upgradeBusinessToPro,
+  downgradeBusinessPro,
 } from "@/lib/firestore-helpers";
 import { ESCROW_STATUS, BANNER_SLOTS, DISPUTE_OUTCOMES } from "@/lib/constants";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
@@ -58,6 +61,8 @@ import {
   Truck,
   RotateCcw,
   Banknote,
+  Store,
+  Crown,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import AdminAnalytics from "./AdminAnalytics";
@@ -77,6 +82,7 @@ const TABS = [
   { id: "transactions", label: "Deals", icon: CreditCard },
   { id: "ads", label: "Ads", icon: Package },
   { id: "users", label: "Users", icon: Users },
+  { id: "businesses", label: "Business Stores", icon: Store },
   { id: "payments", label: "Bank details", icon: Settings },
 ];
 
@@ -228,6 +234,7 @@ export default function AdminDashboard() {
   const [escrowLookup, setEscrowLookup] = useState("");
   const [listingLookup, setListingLookup] = useState("");
   const [banners, setBanners] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
   const [editingBannerId, setEditingBannerId] = useState(null);
   const [bannerForm, setBannerForm] = useState({
     title: "",
@@ -263,7 +270,7 @@ export default function AdminDashboard() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar] = await Promise.all([
+      const [a, t, u, pv, psv, pr, pa, pset, bn, od, hp, prr, rit, rar, bs] = await Promise.all([
         fetchAllAds(),
         fetchAllTransactions(),
         fetchAllUsers(),
@@ -278,6 +285,7 @@ export default function AdminDashboard() {
         fetchPendingReturnReviews().catch(() => []),
         fetchReturnsInTransit().catch(() => []),
         fetchRejectedAwaitingReturn().catch(() => []),
+        fetchAllBusinesses().catch(() => []),
       ]);
       setAds(a);
       setTransactions(t);
@@ -293,6 +301,7 @@ export default function AdminDashboard() {
       setHomepageSettings(hp);
       setPaymentForm(pset);
       setBanners(bn);
+      setBusinesses(bs);
     } catch (e) {
       console.error(e);
       showToast("Failed to load admin data", "error");
@@ -992,6 +1001,94 @@ export default function AdminDashboard() {
         {tab === "ads" && <AdminAdsManager ads={ads} users={users} onRefresh={loadAll} />}
 
         {tab === "users" && <AdminUserManager users={users} ads={ads} onRefresh={loadAll} />}
+
+        {tab === "businesses" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-700">Business Stores ({businesses.length})</h3>
+            </div>
+            {businesses.length === 0 ? (
+              <p className="text-slate-500">No business stores yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {businesses.map((b) => {
+                  const isPro = b.isPro === true;
+                  const userName = users.find((u) => u.id === b.id)?.displayName || b.businessName || "Unknown";
+                  return (
+                    <div key={b.id} className="tk-card flex flex-col gap-3 !p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                          <Image src={b.logoUrl || "/store-logo-placeholder.svg"} alt="" fill className="object-cover" unoptimized />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold">{b.businessName || "Unnamed Store"}</p>
+                            {isPro && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                                <Crown size={10} /> PRO
+                              </span>
+                            )}
+                            {b.verified && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                Verified
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">{userName} · {b.slug || "no-slug"}</p>
+                          {b.location?.city && (
+                            <p className="text-xs text-slate-400">{b.location.city}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/store/${b.slug}`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2.5 py-1.5 text-[11px] font-bold text-sky-700 transition hover:bg-sky-100"
+                        >
+                          <ExternalLink size={12} /> View
+                        </Link>
+                        {isPro ? (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await downgradeBusinessPro(b.id);
+                                showToast("PRO removed", "success");
+                                loadAll();
+                              } catch {
+                                showToast("Failed to remove PRO", "error");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-amber-700 transition hover:bg-amber-50"
+                          >
+                            <Crown size={12} /> Remove PRO
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await upgradeBusinessToPro(b.id, "monthly");
+                                showToast("PRO activated", "success");
+                                loadAll();
+                              } catch {
+                                showToast("Failed to activate PRO", "error");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-md transition hover:from-amber-600 hover:to-yellow-600"
+                          >
+                            <Crown size={12} /> Give PRO
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === "payments" && paymentForm && (
           <div className="tk-card max-w-xl space-y-4">

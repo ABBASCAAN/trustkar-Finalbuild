@@ -2388,11 +2388,17 @@ export async function fetchSellerCategories(userId) {
   const snap = await getDocs(
     query(
       collection(db, COLLECTIONS.SELLER_CATEGORIES),
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc")
+      where("userId", "==", userId)
     )
   );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Sort client-side to avoid composite index requirement
+  list.sort((a, b) => {
+    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    return bTime - aTime;
+  });
+  return list;
 }
 
 export async function deleteSellerCategory(categoryId) {
@@ -2400,14 +2406,20 @@ export async function deleteSellerCategory(categoryId) {
 }
 
 export async function fetchStoreAds(sellerId, { status, categoryId, bestSeller } = {}) {
+  // Use simple query without orderBy to avoid composite index requirement
   let qRef = query(
     collection(db, COLLECTIONS.ADS),
     where("sellerId", "==", sellerId),
-    orderBy("createdAt", "desc"),
     limit(150)
   );
   const snap = await getDocs(qRef);
   let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Sort client-side by createdAt desc
+  list.sort((a, b) => {
+    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    return bTime - aTime;
+  });
   if (status) list = list.filter((a) => a.status === status);
   if (categoryId) list = list.filter((a) => a.sellerCategoryId === categoryId);
   if (bestSeller) list = list.filter((a) => a.bestSeller === true);
@@ -2433,4 +2445,49 @@ export async function updateAdSellerCategory(adId, sellerCategoryId) {
     sellerCategoryId: sellerCategoryId || null,
     updatedAt: serverTimestamp(),
   });
+}
+
+/* ── PRO Tier / Business Store helpers ── */
+
+export async function upgradeBusinessToPro(userId, plan = "monthly") {
+  const now = new Date();
+  const expires = new Date(now);
+  expires.setMonth(expires.getMonth() + 1);
+  const businessRef = doc(db, COLLECTIONS.BUSINESSES, userId);
+  await updateDoc(businessRef, {
+    isPro: true,
+    proPlan: plan,
+    proExpiresAt: Timestamp.fromDate(expires),
+    proActivatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return { isPro: true, proPlan: plan, proExpiresAt: expires };
+}
+
+export async function downgradeBusinessPro(userId) {
+  const businessRef = doc(db, COLLECTIONS.BUSINESSES, userId);
+  await updateDoc(businessRef, {
+    isPro: false,
+    proPlan: null,
+    proExpiresAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export function countAdsThisMonth(ads) {
+  // Count ads posted this month client-side (no DB query needed)
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  return ads.filter((ad) => {
+    const t = ad.createdAt?.toMillis ? ad.createdAt.toMillis() : ad.createdAt;
+    return t >= startOfMonth;
+  }).length;
+}
+
+export async function fetchAllBusinesses() {
+  const snap = await getDocs(collection(db, COLLECTIONS.BUSINESSES));
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Sort by businessName
+  list.sort((a, b) => (a.businessName || "").localeCompare(b.businessName || ""));
+  return list;
 }
