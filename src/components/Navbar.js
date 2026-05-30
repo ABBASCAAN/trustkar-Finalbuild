@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { BRAND_NAME } from "@/lib/constants";
 import UserMenu from "@/components/UserMenu";
-import { Plus, BadgeCheck, MessageCircle, LogIn } from "lucide-react";
+import { Plus, BadgeCheck, MessageCircle, LogIn, Store } from "lucide-react";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 
 export default function Navbar() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, profile, isAdmin, loading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -58,6 +58,16 @@ export default function Navbar() {
               className="hidden items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-bold text-sky-800 transition hover:bg-sky-100 sm:px-3 sm:py-2 sm:text-xs md:inline-flex"
             >
               <BadgeCheck size={13} className="sm:h-3.5 sm:w-3.5" /> Admin
+            </Link>
+          )}
+
+          {/* My Store */}
+          {profile?.accountType === "business" && profile?.storeSlug && (
+            <Link
+              href={`/store/${profile.storeSlug}`}
+              className="hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100 sm:px-3 sm:py-2 sm:text-xs md:inline-flex"
+            >
+              <Store size={13} className="sm:h-3.5 sm:w-3.5" /> My Store
             </Link>
           )}
 

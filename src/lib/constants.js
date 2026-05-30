@@ -68,6 +68,8 @@ export const COLLECTIONS = {
   AUDIT_LOGS: "audit_logs",
   CHATS: "chats",
   FEATURED_AD_REVIEWS: "featured_ad_reviews",
+  BUSINESSES: "businesses",
+  SELLER_CATEGORIES: "seller_categories",
 };
 
 export const LEDGER_TYPES = {

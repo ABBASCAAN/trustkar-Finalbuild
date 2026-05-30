@@ -176,6 +176,8 @@ export async function createAd(adData, sellerId) {
     listingId,
     status: AD_STATUS.PENDING_APPROVAL,
     featured: false,
+    bestSeller: false,
+    sellerCategoryId: null,
     featuredUntil: null,
     viewCount: 0,
     createdAt: serverTimestamp(),
@@ -2295,4 +2297,140 @@ export async function deleteChat(chatId) {
   msgSnap.docs.forEach((d) => batch.delete(d.ref));
   batch.delete(doc(db, COLLECTIONS.CHATS, chatId));
   await batch.commit();
+}
+
+/* ============================================================
+   BUSINESS / STORE HELPERS
+   ============================================================ */
+
+export async function createBusinessProfile(userId, data) {
+  const slug = data.businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const payload = {
+    userId,
+    businessName: data.businessName.trim(),
+    slug,
+    logoUrl: data.logoUrl || "",
+    bannerUrl: data.bannerUrl || "",
+    productTypes: data.productTypes || [],
+    location: {
+      city: data.location?.city || "",
+      state: data.location?.state || "",
+      country: data.location?.country || "Pakistan",
+    },
+    phone: data.phone || "",
+    socialLinks: {
+      instagram: data.socialLinks?.instagram || "",
+      facebook: data.socialLinks?.facebook || "",
+      linkedin: data.socialLinks?.linkedin || "",
+      website: data.socialLinks?.website || "",
+    },
+    trustRating: 5.0,
+    completedDeals: 0,
+    reviewCount: 0,
+    verified: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  await setDoc(doc(db, COLLECTIONS.BUSINESSES, userId), payload);
+  await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+    accountType: "business",
+    businessName: payload.businessName,
+    storeSlug: slug,
+    updatedAt: serverTimestamp(),
+  });
+  return { id: userId, ...payload };
+}
+
+export async function fetchBusinessProfile(userId) {
+  const snap = await getDoc(doc(db, COLLECTIONS.BUSINESSES, userId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function fetchBusinessBySlug(slug) {
+  const snap = await getDocs(
+    query(collection(db, COLLECTIONS.BUSINESSES), where("slug", "==", slug), limit(1))
+  );
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { id: d.id, ...d.data() };
+}
+
+export async function updateBusinessProfile(userId, data) {
+  const updates = { ...data, updatedAt: serverTimestamp() };
+  if (data.businessName) {
+    updates.slug = data.businessName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+      businessName: data.businessName.trim(),
+      storeSlug: updates.slug,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await updateDoc(doc(db, COLLECTIONS.BUSINESSES, userId), updates);
+}
+
+export async function createSellerCategory(userId, name) {
+  const ref = await addDoc(collection(db, COLLECTIONS.SELLER_CATEGORIES), {
+    userId,
+    name: name.trim(),
+    createdAt: serverTimestamp(),
+  });
+  return { id: ref.id, name: name.trim() };
+}
+
+export async function fetchSellerCategories(userId) {
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.SELLER_CATEGORIES),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc")
+    )
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function deleteSellerCategory(categoryId) {
+  await deleteDoc(doc(db, COLLECTIONS.SELLER_CATEGORIES, categoryId));
+}
+
+export async function fetchStoreAds(sellerId, { status, categoryId, bestSeller } = {}) {
+  let qRef = query(
+    collection(db, COLLECTIONS.ADS),
+    where("sellerId", "==", sellerId),
+    orderBy("createdAt", "desc"),
+    limit(150)
+  );
+  const snap = await getDocs(qRef);
+  let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (status) list = list.filter((a) => a.status === status);
+  if (categoryId) list = list.filter((a) => a.sellerCategoryId === categoryId);
+  if (bestSeller) list = list.filter((a) => a.bestSeller === true);
+  return list;
+}
+
+export async function toggleAdBestSeller(adId, bestSeller) {
+  await updateDoc(doc(db, COLLECTIONS.ADS, adId), {
+    bestSeller: Boolean(bestSeller),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function toggleAdActive(adId, isActive) {
+  await updateDoc(doc(db, COLLECTIONS.ADS, adId), {
+    status: isActive ? AD_STATUS.ACTIVE : AD_STATUS.INACTIVE,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateAdSellerCategory(adId, sellerCategoryId) {
+  await updateDoc(doc(db, COLLECTIONS.ADS, adId), {
+    sellerCategoryId: sellerCategoryId || null,
+    updatedAt: serverTimestamp(),
+  });
 }

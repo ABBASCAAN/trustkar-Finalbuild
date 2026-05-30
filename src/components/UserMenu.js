@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { ChevronDown, User, Settings, HelpCircle, LogOut } from "lucide-react";
+import { ChevronDown, User, Settings, HelpCircle, LogOut, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DROPDOWN_ITEMS = [
+const BASE_ITEMS = [
   { href: "/dashboard", label: "My Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/support", label: "Help and Support", icon: HelpCircle },
@@ -32,6 +32,10 @@ export default function UserMenu() {
 
   const name = profile?.displayName || user.displayName || user.email?.split("@")[0] || "Account";
   const photo = profile?.photoURL || user.photoURL;
+
+  const dropdownItems = profile?.accountType === "business"
+    ? [{ href: "/seller-dashboard", label: "Seller Dashboard", icon: Store }, ...BASE_ITEMS]
+    : BASE_ITEMS;
 
   async function handleLogout() {
     await logout();
@@ -76,7 +80,7 @@ export default function UserMenu() {
           <p className="truncate text-[11px] text-slate-500">{user.email}</p>
         </div>
 
-        {DROPDOWN_ITEMS.map(({ href, label, icon: Icon }) => (
+        {dropdownItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
