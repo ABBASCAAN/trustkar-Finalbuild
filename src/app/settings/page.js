@@ -211,27 +211,33 @@ export default function SettingsPage() {
   const photo = profile?.photoURL || user?.photoURL;
 
   return (
-    <div className="min-h-screen bg-[var(--tk-bg)] pb-24 md:pb-8">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
-        <div className="tk-container flex items-center gap-3 py-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex h-10 w-10 items-center justify-center rounded-xl transition hover:bg-slate-100"
-          >
-            <ArrowLeft size={20} className="text-slate-700" />
-          </button>
-          <div>
-            <h1 className="text-lg font-black text-slate-900">Settings</h1>
-            <p className="text-xs font-medium text-slate-500">
-              Manage your profile and preferences
-            </p>
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      {/* Fixed top bar — TrustKar brand */}
+      <div className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">
+        <div className="flex items-center justify-center py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-700 text-xs font-black text-white shadow-sm">TK</span>
+            <span className="text-lg font-black tracking-tight text-slate-900">TrustKar</span>
           </div>
         </div>
       </div>
 
-      <div className="tk-container flex flex-col gap-4 py-4 sm:gap-5 sm:py-6">
+      {/* Fixed sub-header — Settings title */}
+      <div className="sticky top-[52px] z-40 border-b border-slate-200/60 bg-white/95 backdrop-blur-sm">
+        <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
+          <button type="button" onClick={() => router.back()} className="flex h-9 w-9 items-center justify-center rounded-xl transition hover:bg-slate-100">
+            <ArrowLeft size={18} className="text-slate-700" />
+          </button>
+          <div>
+            <h1 className="text-xl font-black text-slate-900">Settings</h1>
+            <p className="text-xs font-medium text-slate-400">Manage your profile and preferences</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+        <div className="mx-auto flex max-w-2xl flex-col gap-4">
         {/* Profile Picture */}
         <SectionCard title="Profile Picture" icon={Camera}>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
@@ -472,6 +478,7 @@ export default function SettingsPage() {
             )}
           </div>
         </SectionCard>
+        </div>
       </div>
 
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
