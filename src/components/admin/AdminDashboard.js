@@ -41,7 +41,7 @@ import {
 } from "@/lib/firestore-helpers";
 import { ESCROW_STATUS, BANNER_SLOTS, DISPUTE_OUTCOMES } from "@/lib/constants";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatPakPhone, getPhoneDigitsForWa } from "@/lib/utils";
 import {
   Shield,
   Loader2,
@@ -687,13 +687,15 @@ export default function AdminDashboard() {
                   : ts?.seconds
                   ? new Date(ts.seconds * 1000).toLocaleString("en-PK")
                   : "Just now";
-                const waLink = phone ? `https://wa.me/${phone.replace(/\D/g, "")}?text=Your+TrustKar+verification+OTP+is:+${otpCode}` : "";
+                const formattedPhone = formatPakPhone(phone);
+                const waDigits = getPhoneDigitsForWa(phone);
+                const waLink = waDigits ? `https://wa.me/${waDigits}?text=Your+TrustKar+verification+OTP+is:+${otpCode}` : "";
                 return (
                   <div key={otpItem.id} className="tk-card space-y-3 !p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-bold text-slate-900">{phone}</p>
-                        <p className="text-xs text-slate-500">Requested: {timeStr}</p>
+                        <p className="text-sm font-bold text-slate-900">{formattedPhone}</p>
+                        <p className="text-xs text-slate-500">{phone} · Requested: {timeStr}</p>
                       </div>
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Pending</span>
                     </div>

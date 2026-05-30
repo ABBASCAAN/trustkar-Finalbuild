@@ -63,6 +63,47 @@ export function getConditionBadgeClass(condition) {
   }
 }
 
+/**
+ * Normalize Pakistani phone number to +92 format.
+ * Input: "03000000000" or "3000000000" or "+923000000000"
+ * Output: "+923000000000"
+ */
+export function normalizePakPhone(input) {
+  if (!input) return "";
+  let digits = input.replace(/\D/g, "");
+  if (digits.startsWith("92")) {
+    digits = digits.slice(2);
+  }
+  if (digits.startsWith("0")) {
+    digits = digits.slice(1);
+  }
+  return `+92${digits}`;
+}
+
+/**
+ * Format Pakistani phone for display: +92 300 0000000
+ */
+export function formatPakPhone(input) {
+  const normalized = normalizePakPhone(input);
+  const digits = normalized.replace(/\D/g, "");
+  if (digits.length === 12) {
+    // +92 300 0000000
+    return `+92 ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  }
+  if (digits.length === 11) {
+    return `+92 ${digits.slice(1, 4)} ${digits.slice(4)}`;
+  }
+  return normalized;
+}
+
+/**
+ * Extract digits only for WhatsApp wa.me link (923000000000)
+ */
+export function getPhoneDigitsForWa(input) {
+  const normalized = normalizePakPhone(input);
+  return normalized.replace(/\D/g, "");
+}
+
 export function groupAdsByCategory(ads) {
   const groups = {};
   for (const ad of ads) {

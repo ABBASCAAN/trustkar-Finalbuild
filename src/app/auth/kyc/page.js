@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { BRAND_NAME } from "@/lib/constants";
 import { useAuth } from "@/context/AuthContext";
 import { generatePhoneOtp, verifyPhoneOtp } from "@/lib/firestore-helpers";
+import { normalizePakPhone } from "@/lib/utils";
 import {
   Loader2,
   CheckCircle,
@@ -39,14 +40,15 @@ function KycForm() {
   }, [profile]);
 
   async function handleSendOtp() {
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length < 10) {
-      showToast("Enter a valid mobile number (10+ digits)", "error");
+    const normalized = normalizePakPhone(phone);
+    const digitsOnly = normalized.replace(/\D/g, "");
+    if (digitsOnly.length < 12) {
+      showToast("Enter a valid mobile number (e.g. 3000000000)", "error");
       return;
     }
     setBusy(true);
     try {
-      await generatePhoneOtp(user.uid, cleaned);
+      await generatePhoneOtp(user.uid, normalized);
       showToast("OTP request sent — check your WhatsApp shortly", "success");
       setStep("otp");
     } catch (err) {
@@ -139,13 +141,21 @@ function KycForm() {
                 <p className="text-xs text-slate-500">WhatsApp must be active on this number.</p>
               </div>
             </div>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))}
-              placeholder="03XXXXXXXXX"
-              className="tk-input w-full text-center text-lg tracking-widest"
-              type="tel"
-            />
+            <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white">
+              <span className="flex h-12 items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500 select-none">
+                +92
+              </span>
+              <input
+                value={phone.replace(/^\+?92/, "").replace(/^0/, "")}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setPhone(digits);
+                }}
+                placeholder="3000000000"
+                className="h-12 w-full flex-1 bg-transparent px-3 text-center text-lg tracking-widest outline-none"
+                type="tel"
+              />
+            </div>
             <button
               type="button"
               disabled={busy || phone.replace(/\D/g, "").length < 10}

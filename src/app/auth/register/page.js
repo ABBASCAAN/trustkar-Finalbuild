@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthShell from "@/components/auth/AuthShell";
+import { normalizePakPhone } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 function RegisterForm() {
@@ -28,7 +29,8 @@ function RegisterForm() {
     }
     setLoading(true);
     try {
-      await register(email, password, displayName, phone);
+      const normalizedPhone = normalizePakPhone(phone);
+      await register(email, password, displayName, normalizedPhone);
       if (typeof window !== "undefined") sessionStorage.removeItem("tk_logged_out");
       router.replace(redirect);
     } catch (err) {
@@ -56,12 +58,21 @@ function RegisterForm() {
           onChange={(e) => setEmail(e.target.value)}
           className="tk-input"
         />
-        <input
-          placeholder="Phone (+92...)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="tk-input"
-        />
+        <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white">
+          <span className="flex h-12 items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500 select-none">
+            +92
+          </span>
+          <input
+            type="tel"
+            value={phone.replace(/^\+?92/, "").replace(/^0/, "")}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+              setPhone(digits);
+            }}
+            placeholder="3000000000"
+            className="h-12 flex-1 bg-transparent px-3 text-sm outline-none"
+          />
+        </div>
         <input
           type="password"
           required

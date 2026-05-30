@@ -25,7 +25,7 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, normalizePakPhone } from "@/lib/utils";
 
 const PAYMENT_TYPES = [
   { id: "jazzcash", label: "JazzCash", icon: Smartphone },
@@ -154,9 +154,10 @@ export default function SettingsPage() {
   async function handleSaveProfile() {
     try {
       setSavingProfile(true);
+      const normalizedPhone = normalizePakPhone(phone);
       await updateUserProfile(user.uid, {
         displayName: displayName.trim(),
-        phone: phone.trim(),
+        phone: normalizedPhone,
         city: city.trim(),
         address: address.trim(),
       });
@@ -291,13 +292,24 @@ export default function SettingsPage() {
               onChange={setDisplayName}
               placeholder="Your full name"
             />
-            <InputRow
-              label="Phone Number"
-              value={phone}
-              onChange={setPhone}
-              placeholder="03XX-XXXXXXX"
-              type="tel"
-            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-600">Phone Number</label>
+              <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white">
+                <span className="flex h-11 items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500 select-none">
+                  +92
+                </span>
+                <input
+                  type="tel"
+                  value={phone.replace(/^\+?92/, "").replace(/^0/, "")}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(digits);
+                  }}
+                  placeholder="3000000000"
+                  className="h-11 flex-1 bg-transparent px-3 text-sm outline-none"
+                />
+              </div>
+            </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-600">City</label>
               <select
