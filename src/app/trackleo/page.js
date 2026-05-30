@@ -36,6 +36,21 @@ export default function TrackLeoPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Hidden iframe — loads Leopards tracking page in background */}
+      <iframe
+        src="https://pk.leopardscourier.com/tracking"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          opacity: 0,
+          pointerEvents: "none",
+          border: "none",
+        }}
+        tabIndex={-1}
+        aria-hidden="true"
+        title="hidden-tracking"
+      />
       <style jsx global>{`
         .track-result table {
           width: 100% !important;

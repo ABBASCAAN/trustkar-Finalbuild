@@ -1,52 +1,81 @@
-function cleanLeopardsHtml(html) {
-  // Remove scripts, styles, nav, header, footer elements
+function removeScriptsAndStyles(html) {
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
-    .replace(/<header[\s\S]*?<\/header>/gi, "")
-    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
-    .replace(/<form[\s\S]*?<\/form>/gi, "")
-    .replace(/class="[^"]*header[^"]*"/gi, "")
-    .replace(/class="[^"]*navbar[^"]*"/gi, "")
-    .replace(/class="[^"]*footer[^"]*"/gi, "");
+    .replace(/<link[^>]*stylesheet[^>]*>/gi, "");
+}
+
+function stripTags(html) {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function extractResultHtml(html, cn) {
-  let clean = cleanLeopardsHtml(html);
+  const noScript = removeScriptsAndStyles(html);
 
-  // Check for error message
-  const textContent = clean.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  if (textContent.includes("appeared to be invalid") || textContent.includes("record not found")) {
+  // --- ERROR CHECK ---
+  const plainText = stripTags(noScript);
+  if (plainText.includes("appeared to be invalid") || plainText.includes("record not found")) {
     return {
       type: "error",
       html: `Your query about "${cn}" appeared to be invalid / record not found. Please enter a valid / correct consignment number or contact Leopards Courier for more details.`,
     };
   }
 
-  // Find the tracking result section - usually after search form
-  // Try to extract from body content area
-  let resultHtml = clean;
+  // --- EXTRACT TRACKING CONTENT ---
+  let result = noScript;
 
-  // Remove everything before the first table or result section
-  const tableIndex = resultHtml.toLowerCase().indexOf("<table");
-  if (tableIndex > -1) {
-    // Try to find content before the table that might contain status info
-    const beforeTable = resultHtml.slice(0, tableIndex);
-    // Look for consignment info before table
-    const consignMatch = beforeTable.match(/consignment\s*no[^<]*/i);
-    if (consignMatch) {
-      resultHtml = resultHtml.slice(tableIndex - 200);
-    }
+  // Cut off everything before the first result-y section
+  const markers = [
+    "Consignment No",
+    "Current Status",
+    "Shipment Detail",
+    "Shipper",
+    "Consignee",
+    "Origin",
+    "Destination",
+    "Out for Delivery",
+    "Arrived",
+    "Dispatched",
+  ];
+  let earliest = -1;
+  for (const m of markers) {
+    const idx = result.toLowerCase().indexOf(m.toLowerCase());
+    if (idx > -1 && (earliest === -1 || idx < earliest)) earliest = idx;
+  }
+  if (earliest > 200) {
+    result = result.slice(earliest - 100);
   }
 
-  // Remove obvious Leopards branding elements
-  resultHtml = resultHtml
-    .replace(/<img[^>]*logo[^>]*>/gi, "")
-    .replace(/<img[^>]*leopard[^>]*>/gi, "")
-    .replace(/Leopards Courier/gi, "Courier Partner");
+  // Remove everything after common tail sections (footer links, social, etc.)
+  const tailMarkers = ["Copyright", "All rights reserved", "Privacy Policy", "Contact Us"];
+  for (const tm of tailMarkers) {
+    const idx = result.toLowerCase().indexOf(tm.toLowerCase());
+    if (idx > -1) result = result.slice(0, idx);
+  }
 
-  return { type: "success", html: resultHtml };
+  // Strip structural noise
+  result = result
+    .replace(/<form[\s\S]*?<\/form>/gi, "")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<aside[\s\S]*?<\/aside>/gi, "");
+
+  // Remove logo / brand images
+  result = result
+    .replace(/<img[^>]*logo[^>]*>/gi, "")
+    .replace(/<img[^>]*leopard[^>]*>/gi, "");
+
+  // Replace Leopards text
+  result = result.replace(/Leopards Courier/gi, "Courier Partner");
+
+  // Add base href so relative links work
+  result = result.replace(
+    /<head[^>]*>/i,
+    '<head><base href="https://pk.leopardscourier.com/">'
+  );
+
+  return { type: "success", html: result };
 }
 
 export async function GET(request) {
