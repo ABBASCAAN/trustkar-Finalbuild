@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { BRAND_NAME } from "@/lib/constants";
 import UserMenu from "@/components/UserMenu";
-import { Plus, BadgeCheck, MessageCircle } from "lucide-react";
+import { Plus, BadgeCheck, MessageCircle, LogIn } from "lucide-react";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 
 export default function Navbar() {
@@ -75,9 +75,11 @@ export default function Navbar() {
           ) : !loading ? (
             <Link
               href="/auth/login"
-              className="hidden rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 sm:block"
+              className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-2 text-[11px] font-bold text-white shadow transition hover:bg-slate-800 active:scale-95 sm:px-4 sm:text-xs"
             >
-              Login
+              <LogIn size={13} className="sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Sign in</span>
+              <span className="sm:hidden">Sign in</span>
             </Link>
           ) : null}
         </div>
