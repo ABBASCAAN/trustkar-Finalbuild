@@ -22,11 +22,10 @@ import {
   CheckCircle,
   Tag,
   Building2,
-  Home,
 } from "lucide-react";
 
 export default function BusinessSetupPage() {
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const logoRef = useRef(null);
   const bannerRef = useRef(null);
@@ -45,16 +44,15 @@ export default function BusinessSetupPage() {
   const [bannerPreview, setBannerPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/auth/login?redirect=/business-setup");
     }
-    if (!loading && profile?.accountType && !showSuccess) {
+    if (!loading && profile?.accountType) {
       router.replace("/");
     }
-  }, [user, profile, loading, router, showSuccess]);
+  }, [user, profile, loading, router]);
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -116,8 +114,7 @@ export default function BusinessSetupPage() {
         phone: form.phone,
         socialLinks: form.socialLinks,
       });
-      await refreshProfile();
-      setShowSuccess(true);
+      router.replace("/?business_created=1");
     } catch (err) {
       console.error(err);
       setSubmitting(false);
@@ -449,41 +446,6 @@ export default function BusinessSetupPage() {
         )}
       </div>
 
-      {/* Success Modal */}
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-emerald-200 bg-white p-6 shadow-2xl sm:p-8">
-            <div className="mb-6 flex flex-col items-center text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg">
-                <CheckCircle size={32} className="text-white" />
-              </div>
-              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">
-                Congratulations!
-              </h2>
-              <p className="mt-2 text-sm font-semibold text-slate-600">
-                For Setting Up Your Store With TrustKar.pk
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => router.replace("/")}
-                className="tk-btn-outline flex-1 !py-3.5 text-sm font-bold"
-              >
-                <Home size={16} className="mr-1.5" /> Proceed To Homepage
-              </button>
-              <button
-                type="button"
-                onClick={() => router.replace("/seller-dashboard")}
-                className="tk-btn-primary flex-1 !py-3.5 text-sm font-bold"
-              >
-                <Store size={16} className="mr-1.5" /> Proceed To Store Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

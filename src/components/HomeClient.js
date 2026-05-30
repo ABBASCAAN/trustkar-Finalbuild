@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import HeroSearch from "./HeroSearch";
 import CategoriesGrid from "./CategoriesGrid";
 import HomePromoSlots from "./HomePromoSlots";
@@ -7,11 +9,166 @@ import HomeCategoryRibbon from "./HomeCategoryRibbon";
 import HomeFeaturedBanner from "./HomeFeaturedBanner";
 import HomeCategoryRows from "./HomeCategoryRows";
 import Link from "next/link";
-import { Truck, Star, Handshake, Clock3 } from "lucide-react";
+import { Truck, Star, Handshake, Clock3, Store, X } from "lucide-react";
+
+function Confetti() {
+  const colors = ["#f59e0b", "#10b981", "#0ea5e9", "#ef4444", "#8b5cf6", "#ec4899"];
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+      {Array.from({ length: 50 }).map((_, i) => {
+        const left = Math.random() * 100;
+        const animDuration = 2 + Math.random() * 3;
+        const delay = Math.random() * 1.5;
+        const size = 6 + Math.random() * 8;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        return (
+          <div
+            key={i}
+            className="absolute top-0 rounded-sm"
+            style={{
+              left: `${left}%`,
+              width: `${size}px`,
+              height: `${size}px`,
+              backgroundColor: color,
+              animation: `confetti-fall ${animDuration}s ease-out ${delay}s forwards`,
+              opacity: 0,
+            }}
+          />
+        );
+      })}
+      <style jsx>{`
+        @keyframes confetti-fall {
+          0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+          20% { opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function Firework({ left, delay, color }) {
+  return (
+    <div
+      className="pointer-events-none absolute top-1/2 z-[60]"
+      style={{ left: `${left}%`, animation: `firework-pop 1.2s ease-out ${delay}s forwards`, opacity: 0 }}
+    >
+      {Array.from({ length: 12 }).map((_, i) => (
+        <div
+          key={i}
+          className="absolute h-1.5 w-1.5 rounded-full"
+          style={{
+            backgroundColor: color,
+            transform: `rotate(${i * 30}deg) translateX(0)`,
+            animation: `firework-spark 1.2s ease-out ${delay}s forwards`,
+          }}
+        />
+      ))}
+      <style jsx>{`
+        @keyframes firework-pop {
+          0% { transform: scale(0); opacity: 1; }
+          50% { opacity: 1; }
+          100% { transform: scale(1); opacity: 0; }
+        }
+        @keyframes firework-spark {
+          0% { transform: rotate(var(--r, 0deg)) translateX(0); opacity: 1; }
+          100% { transform: rotate(var(--r, 0deg)) translateX(80px); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function FireworksBurst() {
+  const bursts = [
+    { left: 20, delay: 0.2, color: "#f59e0b" },
+    { left: 50, delay: 0.6, color: "#0ea5e9" },
+    { left: 80, delay: 1.0, color: "#10b981" },
+    { left: 35, delay: 1.4, color: "#ef4444" },
+    { left: 65, delay: 1.8, color: "#8b5cf6" },
+  ];
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[60]">
+      {bursts.map((b, i) => (
+        <Firework key={i} left={b.left} delay={b.delay} color={b.color} />
+      ))}
+    </div>
+  );
+}
 
 export default function HomeClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const businessCreated = searchParams.get("business_created") === "1";
+  const [showModal, setShowModal] = useState(businessCreated);
+  const [showEffects, setShowEffects] = useState(businessCreated);
+
+  useEffect(() => {
+    if (businessCreated) {
+      setShowModal(true);
+      setShowEffects(true);
+      const timer = setTimeout(() => setShowEffects(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [businessCreated]);
+
+  function dismissModal() {
+    setShowModal(false);
+    router.replace("/", { scroll: false });
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[var(--tk-bg)]">
+      {showEffects && <Confetti />}
+      {showEffects && <FireworksBurst />}
+
+      {/* Business Created Success Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm rounded-3xl border border-emerald-200 bg-white p-6 shadow-2xl sm:max-w-md sm:p-8">
+            <button
+              onClick={dismissModal}
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="mb-5 flex flex-col items-center text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg">
+                <Store size={32} className="text-white" />
+              </div>
+              <h2 className="text-xl font-black text-slate-900 sm:text-2xl">
+                Congratulations!
+              </h2>
+              <p className="mt-2 text-sm font-semibold text-slate-600">
+                Your business account has been created successfully.
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Access your store anytime from the{" "}
+                <span className="font-bold text-emerald-700">My Store</span>{" "}
+                section in the navigation bar.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <Link
+                href="/seller-dashboard"
+                onClick={() => setShowModal(false)}
+                className="tk-btn-primary flex items-center justify-center gap-2 !py-3 text-sm font-bold"
+              >
+                <Store size={16} /> Go To Seller Dashboard
+              </Link>
+              <button
+                onClick={dismissModal}
+                className="rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
+              >
+                Continue Browsing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <HeroSearch />
 
       {/* Brand slogan — English, enterprise feel */}
