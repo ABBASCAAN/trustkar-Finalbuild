@@ -38,10 +38,12 @@ function AuthPage() {
 
   useEffect(() => {
     if (!user) return;
-    // Wait until profile finishes loading before redirecting
+    // Wait until auth+profile fully loads before deciding redirect
     if (authLoading) return;
+    // Profile hasn't loaded yet — wait (prevents homepage race condition)
+    if (!profile) return;
     // Redirect to onboarding if account type not selected yet
-    if (profile && !profile.accountType) {
+    if (!profile.accountType) {
       router.replace("/account-type");
       return;
     }

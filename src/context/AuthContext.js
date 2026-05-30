@@ -93,6 +93,7 @@ export function AuthProvider({ children }) {
       }
       setAuthReady(true);
       unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+        setLoading(true);
         setUser(firebaseUser);
         try {
           await loadProfile(firebaseUser);
