@@ -50,8 +50,8 @@ export function AuthProvider({ children }) {
         setProfile(data);
         return data;
       }
-      // Backward compatibility: existing users without accountType default to personal
-      if (!data.accountType && data.createdAt) {
+      // Backward compatibility: existing users without accountType field default to personal
+      if (data.accountType === undefined && data.createdAt) {
         const updated = { ...data, accountType: "personal", onboardingComplete: true };
         await setDoc(ref, { accountType: "personal", onboardingComplete: true }, { merge: true });
         setProfile(updated);
@@ -127,6 +127,8 @@ export function AuthProvider({ children }) {
         trustRating: 5.0,
         completedDeals: 0,
         role: "user",
+        accountType: null,
+        onboardingComplete: false,
         createdAt: serverTimestamp(),
       });
       await loadProfile(cred.user);
