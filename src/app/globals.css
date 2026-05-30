@@ -84,9 +84,10 @@
     @apply mx-auto w-full max-w-[1300px] px-4 sm:px-5 lg:px-6;
   }
 
-  /* Prevent double padding when a page already uses tk-container at its root */
-  .tk-layout-shell > .tk-container {
-    @apply px-0;
+  /* Prevent double padding: strip tk-container padding when inside global shell */
+  .tk-layout-shell .tk-container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   .pb-mobile-nav {
