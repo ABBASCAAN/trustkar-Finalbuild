@@ -102,19 +102,9 @@ export default function ChatsPage() {
   const anyUnread = totalUnread > 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      {/* Fixed top bar — TrustKar brand */}
-      <div className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">
-        <div className="flex items-center justify-center py-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-700 text-xs font-black text-white shadow-sm">TK</span>
-            <span className="text-lg font-black tracking-tight text-slate-900">TrustKar</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Fixed sub-header — Chats title + tabs */}
-      <div className="sticky top-[52px] z-40 border-b border-slate-200/60 bg-white/95 backdrop-blur-sm">
+    <div className="flex h-[100dvh] flex-col bg-slate-50 md:h-auto md:min-h-screen">
+      {/* Fixed header — Chats title + tabs (mobile app feel) */}
+      <div className="shrink-0 border-b border-slate-200/60 bg-white/95 shadow-sm md:sticky md:top-0 md:z-40">
         <div className="px-4 py-3 sm:px-6">
           <h1 className="text-xl font-black text-slate-900">Chats</h1>
           <p className="text-xs font-medium text-slate-400">Manage your conversations</p>
@@ -169,7 +159,7 @@ export default function ChatsPage() {
       </div>
 
       {/* Scrollable chat list */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3 pb-24 sm:px-6 sm:py-4 md:pb-8">
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-sky-600" />

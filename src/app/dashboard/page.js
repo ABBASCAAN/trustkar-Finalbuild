@@ -183,19 +183,9 @@ function DashboardInner() {
   const sales = transactions.filter((t) => t.sellerId === user.uid);
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 md:block md:min-h-0">
-      {/* Mobile: fixed TrustKar brand */}
-      <div className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm md:hidden">
-        <div className="flex items-center justify-center py-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-700 text-xs font-black text-white shadow-sm">TK</span>
-            <span className="text-lg font-black tracking-tight text-slate-900">TrustKar</span>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex h-[100dvh] flex-col bg-slate-50 md:block md:h-auto md:min-h-0">
       {/* Mobile: fixed 4x2 button grid */}
-      <div className="sticky top-[52px] z-40 border-b border-slate-200/60 bg-white/95 backdrop-blur-sm px-3 py-2.5 md:hidden">
+      <div className="shrink-0 border-b border-slate-200/60 bg-white/95 shadow-sm px-3 py-2.5 md:hidden">
         <div className="grid grid-cols-4 gap-2">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
@@ -214,8 +204,8 @@ function DashboardInner() {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto md:overflow-visible">
-        <div className="tk-container py-4 md:py-8">
+      <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4 md:overflow-visible md:px-0 md:pb-8 md:pt-0">
+        <div className="tk-container md:py-8">
           {/* Desktop: Cover / Profile header */}
           <div className="relative mb-6 hidden overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-700 p-6 text-white shadow-lg md:block">
             <div className="relative z-10 flex items-center gap-4">

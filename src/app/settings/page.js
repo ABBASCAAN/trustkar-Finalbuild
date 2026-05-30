@@ -211,19 +211,9 @@ export default function SettingsPage() {
   const photo = profile?.photoURL || user?.photoURL;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      {/* Fixed top bar — TrustKar brand */}
-      <div className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">
-        <div className="flex items-center justify-center py-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-700 text-xs font-black text-white shadow-sm">TK</span>
-            <span className="text-lg font-black tracking-tight text-slate-900">TrustKar</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Fixed sub-header — Settings title */}
-      <div className="sticky top-[52px] z-40 border-b border-slate-200/60 bg-white/95 backdrop-blur-sm">
+    <div className="flex h-[100dvh] flex-col bg-slate-50 md:h-auto md:min-h-screen">
+      {/* Fixed header — Settings title (mobile app feel) */}
+      <div className="shrink-0 border-b border-slate-200/60 bg-white/95 shadow-sm md:sticky md:top-0 md:z-40">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <button type="button" onClick={() => router.back()} className="flex h-9 w-9 items-center justify-center rounded-xl transition hover:bg-slate-100">
             <ArrowLeft size={18} className="text-slate-700" />
@@ -236,7 +226,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24 sm:px-6 sm:py-5 md:pb-8">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
         {/* Profile Picture */}
         <SectionCard title="Profile Picture" icon={Camera}>

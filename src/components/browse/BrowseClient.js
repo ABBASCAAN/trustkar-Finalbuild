@@ -276,12 +276,12 @@ function BrowseInner() {
   return (
     <div className="min-h-screen bg-[var(--tk-bg)]">
       <div className="border-b border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 md:bg-gradient-to-r">
-        <div className="tk-container py-4 sm:py-6">
+        <div className="tk-container py-3 sm:py-6">
           <Breadcrumbs categoryId={categoryId} />
-          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="mt-1.5 flex flex-col gap-2.5 sm:flex-row sm:items-end sm:gap-4">
             <div className="shrink-0 sm:w-[180px] lg:w-[260px]">
-              <h1 className="text-xl font-black text-slate-900 sm:text-3xl">Browse listings</h1>
-              <p className="mt-1 text-xs text-slate-600 sm:text-sm">
+              <h1 className="text-lg font-black text-slate-900 sm:text-3xl">Browse</h1>
+              <p className="text-xs text-slate-600 sm:mt-1 sm:text-sm">
                 {loading ? "Loading…" : `${filtered.length} ads`} · escrow protected
               </p>
             </div>
@@ -298,14 +298,14 @@ function BrowseInner() {
         </div>
       </div>
 
-      <div className="tk-container py-4 sm:py-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="tk-container py-2.5 sm:py-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
-            className="flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-bold lg:hidden"
+            className="flex items-center gap-1.5 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-bold lg:hidden"
             onClick={() => setMobileFilters(true)}
           >
-            <SlidersHorizontal size={16} /> Filters
+            <SlidersHorizontal size={14} /> Filters
           </button>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -350,27 +350,27 @@ function BrowseInner() {
 
           <div>
             {loading ? (
-              <div className={effectiveView === "list" ? "space-y-3" : "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"}>
+              <div className={effectiveView === "list" ? "space-y-2 sm:space-y-3" : "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <SkeletonCard key={i} />
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="tk-card py-16 text-center">
+              <div className="tk-card py-12 text-center sm:py-16">
                 <p className="font-bold text-slate-700">No ads match your filters</p>
                 <Link href="/browse" className="mt-3 inline-block text-sm font-bold text-sky-700">
                   View all listings
                 </Link>
               </div>
             ) : effectiveView === "list" ? (
-              <ul className="space-y-3">
+              <ul className="space-y-2 sm:space-y-3">
                 {filtered.map((ad) => (
                   <li key={ad.id}>
                     <Link
                       href={`/ad/${ad.id}`}
-                      className="tk-card flex gap-3 !p-3 transition hover:border-cyan-300 sm:gap-4"
+                      className="tk-card flex gap-2.5 !p-2.5 transition hover:border-cyan-300 sm:gap-4 sm:!p-3"
                     >
-                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-28">
+                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-28">
                         <Image
                           src={ad.mainImage || ad.images?.[0] || "/placeholder-ad.svg"}
                           alt=""
@@ -384,9 +384,9 @@ function BrowseInner() {
                           </span>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-1 font-bold text-slate-900">{ad.title}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <p className="line-clamp-1 text-sm font-bold text-slate-900 sm:text-base">{ad.title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
                           {ad.condition && (
                             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", getConditionBadgeClass(ad.condition))}>
                               {ad.condition}
