@@ -70,7 +70,6 @@ export const COLLECTIONS = {
   FEATURED_AD_REVIEWS: "featured_ad_reviews",
   BUSINESSES: "businesses",
   SELLER_CATEGORIES: "seller_categories",
-  STORE_FOLLOWS: "store_follows",
 };
 
 export const LEDGER_TYPES = {

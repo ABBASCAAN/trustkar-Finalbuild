@@ -2315,9 +2315,6 @@ export async function createBusinessProfile(userId, data) {
     logoUrl: data.logoUrl || "",
     bannerUrl: data.bannerUrl || "",
     productTypes: data.productTypes || [],
-    description: data.description || "",
-    tagline: data.tagline || "",
-    shippingPolicies: data.shippingPolicies || "",
     location: {
       city: data.location?.city || "",
       state: data.location?.state || "",
@@ -2333,7 +2330,6 @@ export async function createBusinessProfile(userId, data) {
     trustRating: 5.0,
     completedDeals: 0,
     reviewCount: 0,
-    followersCount: 0,
     verified: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -2494,41 +2490,4 @@ export async function fetchAllBusinesses() {
   // Sort by businessName
   list.sort((a, b) => (a.businessName || "").localeCompare(b.businessName || ""));
   return list;
-}
-
-/* ── Store Followers ── */
-
-export async function toggleFollowStore(followerId, sellerId) {
-  const ref = doc(db, COLLECTIONS.STORE_FOLLOWS, `${sellerId}_${followerId}`);
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await deleteDoc(ref);
-    // Decrement followers count
-    const businessRef = doc(db, COLLECTIONS.BUSINESSES, sellerId);
-    const bSnap = await getDoc(businessRef);
-    if (bSnap.exists()) {
-      const current = bSnap.data().followersCount || 0;
-      await updateDoc(businessRef, { followersCount: Math.max(0, current - 1) });
-    }
-    return false;
-  } else {
-    await setDoc(ref, {
-      followerId,
-      sellerId,
-      createdAt: serverTimestamp(),
-    });
-    // Increment followers count
-    const businessRef = doc(db, COLLECTIONS.BUSINESSES, sellerId);
-    const bSnap = await getDoc(businessRef);
-    if (bSnap.exists()) {
-      const current = bSnap.data().followersCount || 0;
-      await updateDoc(businessRef, { followersCount: current + 1 });
-    }
-    return true;
-  }
-}
-
-export async function isFollowingStore(followerId, sellerId) {
-  const snap = await getDoc(doc(db, COLLECTIONS.STORE_FOLLOWS, `${sellerId}_${followerId}`));
-  return snap.exists();
 }

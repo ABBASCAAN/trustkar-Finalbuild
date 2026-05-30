@@ -100,12 +100,10 @@ function GoldenParticles() {
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, profile } = useAuth();
   const businessCreated = searchParams.get("business_created") === "1";
   const storeSlug = searchParams.get("store");
   const [showModal, setShowModal] = useState(businessCreated);
   const [showEffects, setShowEffects] = useState(businessCreated);
-  const isBusinessUser = user && profile?.accountType === "business" && profile?.storeSlug;
 
   useEffect(() => {
     if (businessCreated) {
