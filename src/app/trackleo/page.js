@@ -8,6 +8,7 @@ export default function TrackLeoPage() {
   const [cn, setCn] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [isHtmlResult, setIsHtmlResult] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSearch(e) {
@@ -16,13 +17,15 @@ export default function TrackLeoPage() {
     setLoading(true);
     setError("");
     setResult(null);
+    setIsHtmlResult(false);
     try {
       const res = await fetch(`/api/track-shipment?cn=${encodeURIComponent(cn.trim())}`);
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
-        setResult(data.html || "");
+        setResult(data.message || "");
+        setIsHtmlResult(!!data.isHtml);
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -85,10 +88,18 @@ export default function TrackLeoPage() {
               <h2 className="text-sm font-black text-slate-800">Tracking Result</h2>
               <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">CN: {cn}</span>
             </div>
-            <div
-              className="track-result p-5 text-sm text-slate-700"
-              dangerouslySetInnerHTML={{ __html: result }}
-            />
+            <div className="p-5">
+              {isHtmlResult ? (
+                <div
+                  className="track-result text-sm text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: result }}
+                />
+              ) : (
+                <div className="rounded-xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
+                  {result}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
