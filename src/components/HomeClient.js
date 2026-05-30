@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import HeroSearch from "./HeroSearch";
 import CategoriesGrid from "./CategoriesGrid";
 import HomePromoSlots from "./HomePromoSlots";
@@ -9,88 +10,89 @@ import HomeCategoryRibbon from "./HomeCategoryRibbon";
 import HomeFeaturedBanner from "./HomeFeaturedBanner";
 import HomeCategoryRows from "./HomeCategoryRows";
 import Link from "next/link";
-import { Truck, Star, Handshake, Clock3, Store, X, LayoutGrid } from "lucide-react";
+import { Truck, Star, Handshake, Clock3, Store, X, LayoutGrid, Settings, ExternalLink, Crown } from "lucide-react";
 
-function Confetti() {
-  const colors = ["#f59e0b", "#10b981", "#0ea5e9", "#ef4444", "#8b5cf6", "#ec4899"];
+function ElegantFirework({ offsetX, offsetY, delay, color }) {
+  const dots = 16;
   return (
-    <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
-      {Array.from({ length: 50 }).map((_, i) => {
-        const left = Math.random() * 100;
-        const animDuration = 2 + Math.random() * 3;
-        const delay = Math.random() * 1.5;
-        const size = 6 + Math.random() * 8;
-        const color = colors[Math.floor(Math.random() * colors.length)];
+    <div
+      className="pointer-events-none absolute z-[60]"
+      style={{
+        left: `calc(50% + ${offsetX}px)`,
+        top: `calc(50% + ${offsetY}px)`,
+        animation: `ef-pop 2s ease-out ${delay}s forwards`,
+        opacity: 0,
+      }}
+    >
+      {Array.from({ length: dots }).map((_, i) => {
+        const angle = (i / dots) * 360;
+        const dist = 60 + Math.random() * 50;
+        const dx = Math.cos((angle * Math.PI) / 180) * dist;
+        const dy = Math.sin((angle * Math.PI) / 180) * dist;
         return (
           <div
             key={i}
-            className="absolute top-0 rounded-sm"
+            className="absolute h-1.5 w-1.5 rounded-full"
             style={{
-              left: `${left}%`,
-              width: `${size}px`,
-              height: `${size}px`,
               backgroundColor: color,
-              animation: `confetti-fall ${animDuration}s ease-out ${delay}s forwards`,
+              "--dx": `${dx}px`,
+              "--dy": `${dy}px`,
+              animation: `ef-spark ${1.2 + Math.random() * 0.6}s ease-out ${delay + 0.1}s forwards`,
               opacity: 0,
             }}
           />
         );
       })}
-      <style jsx>{`
-        @keyframes confetti-fall {
-          0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-          20% { opacity: 1; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
 
-function Firework({ left, delay, color }) {
-  return (
-    <div
-      className="pointer-events-none absolute top-1/2 z-[60]"
-      style={{ left: `${left}%`, animation: `firework-pop 1.2s ease-out ${delay}s forwards`, opacity: 0 }}
-    >
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute h-1.5 w-1.5 rounded-full"
-          style={{
-            backgroundColor: color,
-            transform: `rotate(${i * 30}deg) translateX(0)`,
-            animation: `firework-spark 1.2s ease-out ${delay}s forwards`,
-          }}
-        />
-      ))}
-      <style jsx>{`
-        @keyframes firework-pop {
-          0% { transform: scale(0); opacity: 1; }
-          50% { opacity: 1; }
-          100% { transform: scale(1); opacity: 0; }
-        }
-        @keyframes firework-spark {
-          0% { transform: rotate(var(--r, 0deg)) translateX(0); opacity: 1; }
-          100% { transform: rotate(var(--r, 0deg)) translateX(80px); opacity: 0; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function FireworksBurst() {
+function ElegantFireworks() {
   const bursts = [
-    { left: 20, delay: 0.2, color: "#f59e0b" },
-    { left: 50, delay: 0.6, color: "#0ea5e9" },
-    { left: 80, delay: 1.0, color: "#10b981" },
-    { left: 35, delay: 1.4, color: "#ef4444" },
-    { left: 65, delay: 1.8, color: "#8b5cf6" },
+    { offsetX: -160, offsetY: -120, delay: 0.1, color: "#f59e0b" },
+    { offsetX: 160, offsetY: -120, delay: 0.3, color: "#0ea5e9" },
+    { offsetX: -110, offsetY: 40, delay: 0.5, color: "#10b981" },
+    { offsetX: 110, offsetY: 40, delay: 0.7, color: "#f59e0b" },
+    { offsetX: 0, offsetY: -90, delay: 0.9, color: "#ec4899" },
+    { offsetX: -70, offsetY: -40, delay: 1.2, color: "#8b5cf6" },
+    { offsetX: 70, offsetY: -40, delay: 1.4, color: "#0ea5e9" },
   ];
   return (
-    <div className="pointer-events-none fixed inset-0 z-[60]">
+    <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
       {bursts.map((b, i) => (
-        <Firework key={i} left={b.left} delay={b.delay} color={b.color} />
+        <ElegantFirework key={i} offsetX={b.offsetX} offsetY={b.offsetY} delay={b.delay} color={b.color} />
+      ))}
+    </div>
+  );
+}
+
+function GoldenParticles() {
+  const particles = [
+    { x: -140, y: -100, d: 0.0, c: "#f59e0b" },
+    { x: 120, y: -80, d: 0.15, c: "#10b981" },
+    { x: -80, y: 60, d: 0.3, c: "#0ea5e9" },
+    { x: 100, y: 50, d: 0.45, c: "#f59e0b" },
+    { x: 0, y: -60, d: 0.6, c: "#ec4899" },
+    { x: -50, y: -20, d: 0.75, c: "#8b5cf6" },
+    { x: 50, y: -30, d: 0.9, c: "#0ea5e9" },
+    { x: -120, y: 20, d: 1.05, c: "#10b981" },
+    { x: 140, y: -10, d: 1.2, c: "#f59e0b" },
+  ];
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
+      {particles.map((p, i) => (
+        <div
+          key={i}
+          className="absolute h-2 w-2 rounded-full"
+          style={{
+            left: `calc(50% + ${p.x}px)`,
+            top: `calc(50% + ${p.y}px)`,
+            backgroundColor: p.c,
+            boxShadow: `0 0 6px ${p.c}`,
+            animation: `gp-fade 2s ease-out ${p.d}s forwards`,
+            opacity: 0,
+          }}
+        />
       ))}
     </div>
   );
@@ -99,10 +101,12 @@ function FireworksBurst() {
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, profile } = useAuth();
   const businessCreated = searchParams.get("business_created") === "1";
   const storeSlug = searchParams.get("store");
   const [showModal, setShowModal] = useState(businessCreated);
   const [showEffects, setShowEffects] = useState(businessCreated);
+  const isBusinessUser = user && profile?.accountType === "business" && profile?.storeSlug;
 
   useEffect(() => {
     if (businessCreated) {
@@ -120,8 +124,8 @@ export default function HomeClient() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[var(--tk-bg)]">
-      {showEffects && <Confetti />}
-      {showEffects && <FireworksBurst />}
+      {showEffects && <ElegantFireworks />}
+      {showEffects && <GoldenParticles />}
 
       {/* Business Created Success Modal */}
       {showModal && (
@@ -169,6 +173,46 @@ export default function HomeClient() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Business User Quick Access Banner */}
+      {isBusinessUser && (
+        <section className="tk-container pb-0 pt-3 sm:pt-4">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 p-4 shadow-md shadow-amber-100/50 sm:rounded-3xl sm:p-5">
+            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-amber-300/20 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-yellow-400/15 blur-2xl" />
+
+            <div className="relative flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 shadow-md shadow-amber-200">
+                  <Crown size={22} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-amber-900 sm:text-base">
+                    Seller Hub
+                  </h3>
+                  <p className="text-[10px] font-semibold text-amber-700/80 sm:text-xs">
+                    Manage your store, products &amp; settings in one place
+                  </p>
+                </div>
+              </div>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Link
+                  href={`/store/${profile.storeSlug}`}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-800 shadow-sm transition hover:bg-amber-50 sm:flex-none"
+                >
+                  <Store size={14} /> My Store
+                </Link>
+                <Link
+                  href="/seller-dashboard"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-3 py-2 text-xs font-bold text-white shadow-md shadow-amber-200 transition hover:from-amber-600 hover:to-yellow-600 sm:flex-none"
+                >
+                  <Settings size={14} /> Manage Store
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
       )}
 
       <HeroSearch />

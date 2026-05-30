@@ -121,4 +121,22 @@
     40% { transform: rotate(-4deg); }
     50% { transform: rotate(0deg); }
   }
+
+  /* Business creation celebration effects */
+  @keyframes ef-pop {
+    0% { transform: scale(0); opacity: 1; }
+    10% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0; }
+  }
+
+  @keyframes ef-spark {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--dx, 60px), var(--dy, 60px)) scale(0.2); opacity: 0; }
+  }
+
+  @keyframes gp-fade {
+    0% { transform: scale(0); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 1; }
+    100% { transform: scale(0); opacity: 0; }
+  }
 }
