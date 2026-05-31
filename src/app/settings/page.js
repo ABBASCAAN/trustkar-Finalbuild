@@ -387,7 +387,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => router.push("/account-type")}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-700 transition hover:bg-sky-100"
               >
                 <User size={16} /> Switch to Personal User
               </button>

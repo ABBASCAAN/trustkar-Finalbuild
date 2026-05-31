@@ -4,7 +4,7 @@ import { Shield } from "lucide-react";
 
 export default function AuthShell({ title, subtitle, children }) {
   return (
-    <div className="min-h-[80vh] bg-white px-4 py-10">
+    <div className="min-h-[80vh] bg-[var(--tk-bg)] px-4 py-10">
       <div className="mx-auto w-full max-w-md">
         <div className="text-center">
           <Link href="/" className="inline-flex flex-col items-center">

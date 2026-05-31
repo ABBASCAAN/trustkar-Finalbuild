@@ -47,26 +47,29 @@ export default function SearchBar({
   return (
     <div className={`mx-auto max-w-3xl rounded-2xl border border-sky-200/80 bg-white p-2 shadow-xl shadow-sky-200/40 sm:rounded-full sm:p-2 ${className}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative z-[100] sm:w-[180px]">
-          <SearchableDropdown
-            value={categoryId}
-            onChange={setCategoryId}
-            options={categoryOptions}
-            placeholder="Category"
-            icon={LayoutGrid}
-            menuZIndex="z-[200]"
-          />
-        </div>
-        <div className="hidden h-8 w-px bg-slate-200 sm:block" />
-        <div className="relative z-[100] sm:w-[160px]">
-          <SearchableDropdown
-            value={location}
-            onChange={setLocation}
-            options={cityOptions}
-            placeholder="City"
-            icon={MapPin}
-            menuZIndex="z-[200]"
-          />
+        {/* Mobile: category + location side-by-side; Desktop: inline row */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-0">
+          <div className="relative z-[100] sm:w-[180px]">
+            <SearchableDropdown
+              value={categoryId}
+              onChange={setCategoryId}
+              options={categoryOptions}
+              placeholder="Category"
+              icon={LayoutGrid}
+              menuZIndex="z-[200]"
+            />
+          </div>
+          <div className="hidden h-8 w-px bg-slate-200 sm:mx-2 sm:block" />
+          <div className="relative z-[100] sm:w-[160px]">
+            <SearchableDropdown
+              value={location}
+              onChange={setLocation}
+              options={cityOptions}
+              placeholder="City"
+              icon={MapPin}
+              menuZIndex="z-[200]"
+            />
+          </div>
         </div>
         <div className="flex flex-1 items-center gap-2 rounded-full bg-slate-50 px-3 py-2 sm:bg-transparent sm:py-0">
           <Search size={18} className="hidden shrink-0 text-sky-600 sm:block" />

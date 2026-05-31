@@ -5,7 +5,7 @@ import SearchBar from "@/components/SearchBar";
 
 export default function HeroSearch() {
   return (
-    <section className="relative overflow-visible bg-white px-4 pb-5 pt-5 sm:pb-7 sm:pt-7">
+    <section className="relative overflow-visible bg-[var(--tk-bg)] px-4 pb-5 pt-5 sm:pb-7 sm:pt-7">
       <div className="relative z-[80] mx-auto max-w-4xl text-center">
         <p className="mb-3 text-xs font-bold uppercase tracking-widest text-sky-900">
           🇵🇰 Made for Pakistan

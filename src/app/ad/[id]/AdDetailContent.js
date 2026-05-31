@@ -277,9 +277,6 @@ export default function AdDetailContent() {
               <Sparkles size={12} /> Featured listing
             </span>
           )}
-          {ad.listingId && (
-            <p className="font-mono text-[11px] text-sky-700">ID: {ad.listingId}</p>
-          )}
           <h1 className="text-xl font-black text-slate-900 sm:text-2xl">{ad.title}</h1>
           <p className="mt-2 text-2xl font-black text-sky-700">{formatPrice(ad.price)}</p>
           {feePreview && (
@@ -364,11 +361,6 @@ export default function AdDetailContent() {
             </button>
           </div>
 
-          {user && profile?.phoneVerified && (
-            <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-sky-800">
-              <Shield size={14} /> Your account is verified for escrow purchases
-            </p>
-          )}
 
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
