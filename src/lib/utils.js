@@ -53,13 +53,13 @@ export function getMemberSinceYears(timestampSeconds) {
 export function getConditionBadgeClass(condition) {
   switch (condition) {
     case "Brand New":
-      return "bg-sky-100 text-sky-700 ring-1 ring-sky-200";
+      return "bg-sky-600 text-white ring-1 ring-sky-700 shadow-sm";
     case "Used":
-      return "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
+      return "bg-slate-700 text-white ring-1 ring-slate-800 shadow-sm";
     case "Broken/For Parts":
-      return "bg-red-100 text-red-700 ring-1 ring-red-200";
+      return "bg-red-600 text-white ring-1 ring-red-700 shadow-sm";
     default:
-      return "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
+      return "bg-slate-700 text-white ring-1 ring-slate-800 shadow-sm";
   }
 }
 

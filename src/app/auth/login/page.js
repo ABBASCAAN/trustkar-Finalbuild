@@ -199,24 +199,24 @@ function AuthPage() {
     }
   }
 
-  const cardWrap = "group/card w-full sm:w-1/2";
+  const cardWrap = "group/card w-full";
   const cardInner =
-    "h-full rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-sm transition-all duration-700 ease-out sm:p-8 sm:group-hover/wrap:group-[&:not(:hover)]/card:opacity-40 sm:group-hover/wrap:group-[&:not(:hover)]/card:scale-[0.97] sm:group-hover/wrap:group-[&:not(:hover)]/card:blur-[2px]";
+    "h-full rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-sm transition-all duration-700 ease-out sm:p-8";
 
   return (
     <AuthShell title="Welcome to TrustKar" subtitle="Pakistan's safest escrow marketplace">
-      {/* Mobile tab toggle */}
-      <div className="mb-5 flex rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm backdrop-blur-sm sm:hidden">
+      {/* Tab toggle — always visible */}
+      <div className="mb-5 flex rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm backdrop-blur-sm">
         <button type="button" onClick={() => setMobileTab("login")}
           className={`flex-1 rounded-full py-2.5 text-xs font-bold transition ${mobileTab === "login" ? "bg-slate-900 text-white shadow" : "text-slate-500"}`}>Sign in</button>
         <button type="button" onClick={() => setMobileTab("register")}
           className={`flex-1 rounded-full py-2.5 text-xs font-bold transition ${mobileTab === "register" ? "bg-slate-900 text-white shadow" : "text-slate-500"}`}>Create account</button>
       </div>
 
-      {/* Desktop split + mobile conditional — Signup LEFT, Login RIGHT */}
-      <div className="group/wrap flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-        {/* REGISTER SIDE — LEFT */}
-        <div className={`${cardWrap} ${mobileTab !== "register" ? "hidden sm:block" : ""}`}>
+      {/* Single card layout — same on all screen sizes */}
+      <div className="group/wrap flex flex-col gap-4">
+        {/* REGISTER SIDE */}
+        <div className={`${cardWrap} ${mobileTab !== "register" ? "hidden" : ""}`}>
           <div className={cardInner}>
             {regStep === "form" && (
               <>
@@ -282,10 +282,7 @@ function AuthPage() {
                   </button>
                 </form>
 
-                <p className="mt-5 text-center text-sm text-slate-500 sm:hidden">
-                  Already have an account? <button type="button" onClick={() => setMobileTab("login")} className="font-bold text-sky-700 hover:underline">Sign in</button>
-                </p>
-              </>
+                  </>
             )}
 
             {regStep === "otp" && (
@@ -340,16 +337,8 @@ function AuthPage() {
           </div>
         </div>
 
-        {/* OR divider */}
-        <div className="hidden flex-col items-center justify-center sm:flex">
-          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-400 shadow-sm">
-            OR
-            <span className="absolute inset-0 rounded-full bg-slate-100 opacity-0 transition-opacity group-hover/wrap:opacity-20" />
-          </div>
-        </div>
-
-        {/* LOGIN SIDE — RIGHT */}
-        <div className={`${cardWrap} ${mobileTab !== "login" ? "hidden sm:block" : ""}`}>
+        {/* LOGIN SIDE */}
+        <div className={`${cardWrap} ${mobileTab !== "login" ? "hidden" : ""}`}>
           <div className={cardInner}>
             <div className="mb-7 flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 ring-1 ring-sky-200">
@@ -395,9 +384,6 @@ function AuthPage() {
               </button>
             </form>
 
-            <p className="mt-5 text-center text-sm text-slate-500 sm:hidden">
-              No account? <button type="button" onClick={() => setMobileTab("register")} className="font-bold text-sky-700 hover:underline">Create one</button>
-            </p>
           </div>
         </div>
       </div>

@@ -37,11 +37,26 @@ export default function ImageLightbox({
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === "ArrowRight") go(1);
     }
+    function preventScroll(e) {
+      e.preventDefault();
+    }
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.top = `-${window.scrollY}px`;
+    window.addEventListener("wheel", preventScroll, { passive: false });
+    window.addEventListener("touchmove", preventScroll, { passive: false });
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", preventScroll);
+      window.removeEventListener("touchmove", preventScroll);
+      const scrollY = document.body.style.top;
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
       document.body.style.overflow = "";
+      window.scrollTo(0, parseInt(scrollY || "0") * -1);
     };
   }, [go, onClose]);
 

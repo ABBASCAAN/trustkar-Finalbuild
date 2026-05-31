@@ -282,7 +282,7 @@ function BrowseInner() {
             <div className="shrink-0 sm:w-[180px] lg:w-[260px]">
               <h1 className="text-lg font-black text-slate-900 sm:text-3xl">Browse</h1>
               <p className="text-xs text-slate-600 sm:mt-1 sm:text-sm">
-                {loading ? "Loading…" : `${filtered.length} ads`} · escrow protected
+                {loading ? "Loading…" : `${filtered.length} ads`}
               </p>
             </div>
             <div className="flex flex-1 justify-center">
@@ -350,7 +350,7 @@ function BrowseInner() {
 
           <div>
             {loading ? (
-              <div className={effectiveView === "list" ? "space-y-2 sm:space-y-3" : "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"}>
+              <div className={effectiveView === "list" ? "space-y-2 sm:space-y-3" : "grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <SkeletonCard key={i} />
                 ))}

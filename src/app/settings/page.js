@@ -25,6 +25,8 @@ import {
   CheckCircle,
   Trash2,
   Plus,
+  Briefcase,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -363,6 +365,41 @@ export default function SettingsPage() {
                 Save Profile
               </button>
             </div>
+          </div>
+        </SectionCard>
+
+        {/* Account Type */}
+        <SectionCard title="Account Type" icon={Briefcase}>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between rounded-xl border border-sky-100 bg-sky-50/40 p-4">
+              <div>
+                <p className="text-sm font-bold text-slate-900">
+                  Current: {profile?.accountType === "business" ? "Business User" : "Personal User"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {profile?.accountType === "business"
+                    ? "You can post ads and manage a store."
+                    : "You can browse, buy, and sell as an individual."}
+                </p>
+              </div>
+            </div>
+            {profile?.accountType === "business" ? (
+              <button
+                type="button"
+                onClick={() => router.push("/account-type")}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                <User size={16} /> Switch to Personal User
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => router.push("/business-setup")}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-200 transition hover:bg-sky-700"
+              >
+                <Briefcase size={16} /> Switch to Business User <ArrowRight size={14} />
+              </button>
+            )}
           </div>
         </SectionCard>
 

@@ -6,8 +6,8 @@ import { ChevronRight } from "lucide-react";
 
 export default function HomeCategoryRibbon() {
   return (
-    <section className="border-y border-slate-200/80 bg-white">
-      <div className="tk-container flex items-center gap-3 py-2.5 sm:py-3">
+    <section className="tk-container">
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white py-2.5 sm:py-3 sm:px-4">
         <Link
           href="/browse"
           className="shrink-0 text-[11px] font-black uppercase tracking-wider text-sky-700 sm:text-xs"

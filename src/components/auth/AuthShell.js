@@ -4,8 +4,8 @@ import { Shield } from "lucide-react";
 
 export default function AuthShell({ title, subtitle, children }) {
   return (
-    <div className="min-h-[80vh] bg-gradient-to-b from-sky-50 via-[var(--tk-bg)] to-white px-4 py-10">
-      <div className="mx-auto w-full max-w-md sm:max-w-5xl">
+    <div className="min-h-[80vh] bg-white px-4 py-10">
+      <div className="mx-auto w-full max-w-md">
         <div className="text-center">
           <Link href="/" className="inline-flex flex-col items-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-700 text-lg font-black text-white shadow-lg shadow-sky-500/30">

@@ -14,7 +14,7 @@ export default function AdsGrid({ ads, showPrice = true, className, desktopCols 
   return (
     <div
       className={cn(
-        "grid gap-1.5 sm:grid-cols-3 sm:gap-2.5 lg:gap-3",
+        "grid gap-1.5 sm:grid-cols-4 sm:gap-2.5 lg:gap-3",
         isMobile ? "grid-cols-4" : cn("grid-cols-2", desktopCols),
         className
       )}

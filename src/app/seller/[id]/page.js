@@ -11,7 +11,7 @@ import {
 } from "@/lib/firestore-helpers";
 import AdCard from "@/components/AdCard";
 import { getMemberSinceYears } from "@/lib/utils";
-import { Star, Shield, BadgeCheck, Calendar, Package, Loader2 } from "lucide-react";
+import { Star, Shield, BadgeCheck, Calendar, Package, Loader2, MessageCircle } from "lucide-react";
 
 export default function SellerProfilePage() {
   const { id } = useParams();
@@ -90,6 +90,14 @@ export default function SellerProfilePage() {
             </span>
           </div>
           {profile.bio && <p className="mt-4 text-sm text-slate-600">{profile.bio}</p>}
+          <div className="mt-4 flex justify-center sm:justify-start">
+            <a
+              href="/chats"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-4 py-2 text-sm font-bold text-sky-700 ring-1 ring-sky-200 transition hover:bg-sky-100"
+            >
+              <MessageCircle size={16} /> Chat
+            </a>
+          </div>
         </div>
       </div>
 
